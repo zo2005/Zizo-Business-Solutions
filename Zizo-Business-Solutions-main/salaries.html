@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الرواتب والأجور - Zizo Solutions</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title" style="display: flex; align-items: center; gap: 12px;">
+                    <button class="mobile-menu-btn" type="button"></button>
+                    <h1><span id="pageHeaderIcon"></span> إدارة الرواتب والأجور (كل 15 يوماً)</h1>
+                </div>
+                <div class="top-bar-actions">
+                    <div class="badge badge-success" style="font-size: 13.5px; padding: 6px 14px;">
+                        إجمالي الرواتب: <strong id="topGrandTotalVal" style="margin-right: 5px;">0.00 ج.م</strong>
+                    </div>
+                    <button class="btn btn-primary" id="printBtn" onclick="window.print()"></button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="formCardIcon"></span> حساب وصرف راتب موظف</div>
+                    </div>
+                    <form id="salariesForm">
+                        <input type="hidden" id="editIndex" value="-1">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="employeeCode">كود الموظف</label>
+                                <input type="text" id="employeeCode" list="employeesListCode" placeholder="اختر أو اكتب الكود" oninput="onEmployeeCodeChanged()" required>
+                                <datalist id="employeesListCode"></datalist>
+                            </div>
+                            <div class="form-group">
+                                <label for="employeeName">اسم الموظف</label>
+                                <input type="text" id="employeeName" placeholder="الاسم" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="basicSalary">الراتب الأساسي الشهري (ج.م)</label>
+                                <input type="number" id="basicSalary" min="0" step="0.01" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="workDays">أيام العمل الفعلية</label>
+                                <input type="number" id="workDays" min="0" max="15" step="0.5" placeholder="مثال: 13" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="fridayDays">عدد أيام الجمعة</label>
+                                <input type="number" id="fridayDays" min="0" max="5" value="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="overtimeHours">ساعات السهر الإضافية</label>
+                                <input type="number" id="overtimeHours" min="0" step="0.5" value="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="delayHours">ساعات التأخير</label>
+                                <input type="number" id="delayHours" min="0" step="0.5" value="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bonus">المكافآت (ج.م)</label>
+                                <input type="number" id="bonus" min="0" step="0.01" value="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="deductions">الخصومات / السلف (ج.م)</label>
+                                <input type="number" id="deductions" min="0" step="0.01" value="0" required>
+                            </div>
+                        </div>
+                        <div style="margin-top: 14px;">
+                            <button type="submit" class="btn btn-primary" id="submitBtn" style="min-width: 160px;"></button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="tableCardIcon"></span> كشف مسيرات الرواتب</div>
+                        <button type="button" class="btn btn-danger btn-sm" id="clearSalariesBtn" onclick="deleteAllSalaries()"></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الكود</th>
+                                    <th>الاسم</th>
+                                    <th>الأساسي</th>
+                                    <th>أيام العمل</th>
+                                    <th>الجمعة</th>
+                                    <th>السهر</th>
+                                    <th>التأخير</th>
+                                    <th>المكافآت</th>
+                                    <th>الخصومات</th>
+                                    <th>الصافي المستحق</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salariesTableBody"></tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="9">إجمالي الرواتب المصروفة العامة</td>
+                                    <td id="grandTotalSalaries" colspan="2">0.00 ج.م</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        App.requireAuth();
+
+        const currentUser = App.getUser();
+        const storageKey = 'salariesList_' + currentUser;
+        const employeesStorageKey = 'employeesList_' + currentUser;
+
+        let salariesData = JSON.parse(localStorage.getItem(storageKey)) || [];
+        let registeredEmployees = JSON.parse(localStorage.getItem(employeesStorageKey)) || [];
+
+        function loadEmployeesData() {
+            const datalist = document.getElementById('employeesListCode');
+            datalist.innerHTML = '';
+            registeredEmployees.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.code || emp.id;
+                opt.textContent = emp.name;
+                datalist.appendChild(opt);
+            });
+        }
+
+        function onEmployeeCodeChanged() {
+            const inputCode = document.getElementById('employeeCode').value.trim();
+            const found = registeredEmployees.find(emp => (emp.code == inputCode || emp.id == inputCode));
+            if (found) {
+                document.getElementById('employeeName').value = found.name;
+                if (found.salary) document.getElementById('basicSalary').value = found.salary;
+            }
+        }
+
+        function saveAndRender() {
+            renderTable(salariesData);
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.save(storageKey, salariesData);
+            } else {
+                localStorage.setItem(storageKey, JSON.stringify(salariesData));
+            }
+        }
+
+        function deleteSalary(index) {
+            if (confirm("هل أنت متأكد من حذف سجل هذا الموظف؟")) {
+                salariesData.splice(index, 1);
+                saveAndRender();
+            }
+        }
+
+        function deleteAllSalaries() {
+            if (salariesData.length === 0) return alert("السجل فارغ بالفعل!");
+            if (confirm("تحذير: هل أنت متأكد من حذف جميع سجلات الرواتب وتصفير الكشف؟")) {
+                salariesData = [];
+                saveAndRender();
+            }
+        }
+
+        function editSalary(index) {
+            const sal = salariesData[index];
+            document.getElementById('employeeCode').value = sal.employeeCode || '';
+            document.getElementById('employeeName').value = sal.employeeName || '';
+            document.getElementById('basicSalary').value = sal.basicSalary || '';
+            document.getElementById('workDays').value = sal.workDays || '';
+            document.getElementById('fridayDays').value = sal.fridayDays || 0;
+            document.getElementById('overtimeHours').value = sal.overtimeHours || 0;
+            document.getElementById('delayHours').value = sal.delayHours || 0;
+            document.getElementById('bonus').value = sal.bonus || 0;
+            document.getElementById('deductions').value = sal.deductions || 0;
+
+            document.getElementById('editIndex').value = index;
+            document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تعديل وتحديث الراتب</span>';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('salariesTableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" style="color: var(--text-muted); padding: 18px;">لا توجد رواتب مسجلة لهذا الحساب حتى الآن.</td></tr>`;
+                document.getElementById('grandTotalSalaries').textContent = '0.00 ج.م';
+                document.getElementById('topGrandTotalVal').textContent = '0.00 ج.م';
+                return;
+            }
+
+            let totalSum = 0;
+            data.forEach((sal, index) => {
+                const basic = parseFloat(sal.basicSalary) || 0;
+                const wDays = parseFloat(sal.workDays) || 0;
+                const fDays = parseFloat(sal.fridayDays) || 0;
+                const oHours = parseFloat(sal.overtimeHours) || 0;
+                const dHours = parseFloat(sal.delayHours) || 0;
+                const bon = parseFloat(sal.bonus) || 0;
+                const ded = parseFloat(sal.deductions) || 0;
+
+                const dayRate = basic / 13;
+                const hourRate = dayRate / 8;
+                const normalDaysPay = dayRate * wDays;
+                const fridayPay = (dayRate * 2) * fDays;
+                const overtimePay = (oHours / 3) * (dayRate * 0.5);
+                const delayDeduction = dHours * hourRate;
+                const netSalary = normalDaysPay + fridayPay + overtimePay + bon - delayDeduction - ded;
+
+                sal.netDue = netSalary;
+                totalSum += netSalary;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${sal.employeeCode || '-'}</strong></td>
+                    <td><strong>${sal.employeeName || '-'}</strong></td>
+                    <td>${basic.toFixed(2)}</td>
+                    <td>${wDays} يوم</td>
+                    <td>${fDays} جمعة</td>
+                    <td>${oHours} س</td>
+                    <td>${dHours} س</td>
+                    <td><span class="badge badge-success">+${bon.toFixed(2)}</span></td>
+                    <td><span class="badge badge-danger">-${ded.toFixed(2)}</span></td>
+                    <td><strong style="color: var(--primary); font-size: 13.5px;">${netSalary.toFixed(2)} ج.م</strong></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editSalary(${index})">${App.icon('edit', 12)} تعديل</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteSalary(${index})">${App.icon('trash', 12)} حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('grandTotalSalaries').textContent = totalSum.toFixed(2) + ' ج.م';
+            document.getElementById('topGrandTotalVal').textContent = totalSum.toFixed(2) + ' ج.م';
+        }
+
+        document.getElementById('salariesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const employeeCode = document.getElementById('employeeCode').value.trim();
+            const employeeName = document.getElementById('employeeName').value.trim();
+            const basicSalary = parseFloat(document.getElementById('basicSalary').value) || 0;
+            const workDays = parseFloat(document.getElementById('workDays').value) || 0;
+            const fridayDays = parseFloat(document.getElementById('fridayDays').value) || 0;
+            const overtimeHours = parseFloat(document.getElementById('overtimeHours').value) || 0;
+            const delayHours = parseFloat(document.getElementById('delayHours').value) || 0;
+            const bonus = parseFloat(document.getElementById('bonus').value) || 0;
+            const deductions = parseFloat(document.getElementById('deductions').value) || 0;
+
+            const dayRate = basicSalary / 13;
+            const hourRate = dayRate / 8;
+            const normalDaysPay = dayRate * workDays;
+            const fridayPay = (dayRate * 2) * fridayDays;
+            const overtimePay = (overtimeHours / 3) * (dayRate * 0.5);
+            const delayDeduction = delayHours * hourRate;
+            const netDue = normalDaysPay + fridayPay + overtimePay + bonus - delayDeduction - deductions;
+
+            const editIndex = parseInt(document.getElementById('editIndex').value);
+            const record = {
+                id: editIndex > -1 && salariesData[editIndex] ? salariesData[editIndex].id : Date.now(),
+                employeeCode,
+                employeeName,
+                basicSalary,
+                workDays,
+                fridayDays,
+                overtimeHours,
+                delayHours,
+                bonus,
+                deductions,
+                netDue
+            };
+
+            if (editIndex > -1) {
+                salariesData[editIndex] = record;
+                document.getElementById('editIndex').value = '-1';
+            } else {
+                salariesData.push(record);
+            }
+
+            saveAndRender();
+            this.reset();
+            document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>حساب وصرف الراتب</span>';
+        });
+
+        window.onload = function() {
+            App.initLayout('salaries');
+
+            document.getElementById('pageHeaderIcon').innerHTML = App.icon('wallet', 20);
+            document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
+            document.getElementById('formCardIcon').innerHTML = App.icon('edit', 16);
+            document.getElementById('tableCardIcon').innerHTML = App.icon('receipt', 16);
+            document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>حساب وصرف الراتب</span>';
+            document.getElementById('clearSalariesBtn').innerHTML = App.icon('trash', 13) + ' <span>تصفير كشف الرواتب</span>';
+
+            loadEmployeesData();
+            renderTable(salariesData);
+
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.subscribe(storageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        salariesData = data;
+                        renderTable(salariesData);
+                    }
+                });
+
+                FirebaseDB.subscribe(employeesStorageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        registeredEmployees = data;
+                        loadEmployeesData();
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>

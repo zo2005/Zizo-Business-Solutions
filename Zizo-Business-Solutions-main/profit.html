@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حساب الأرباح - Zizo Solutions</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title" style="display: flex; align-items: center; gap: 12px;">
+                    <button class="mobile-menu-btn" type="button"></button>
+                    <h1><span id="pageHeaderIcon"></span> حساب الأرباح (كل 15 يوماً - نصف شهري)</h1>
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn btn-primary" id="printBtn" onclick="window.print()"></button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="metrics-grid">
+                    <div class="metric-card info">
+                        <div class="title">إجمالي المبيعات المسجلة</div>
+                        <div class="value" id="totalSalesVal">0.00 ج.م</div>
+                    </div>
+                    <div class="metric-card danger">
+                        <div class="title">إجمالي المصروفات والتكاليف</div>
+                        <div class="value" id="totalExpensesVal">0.00 ج.م</div>
+                    </div>
+                    <div class="metric-card success">
+                        <div class="title">صافي الربح الإجمالي</div>
+                        <div class="value" id="netProfitVal">0.00 ج.م</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="formCardIcon"></span> تسجيل دورة أرباح جديدة</div>
+                        <button class="btn btn-secondary btn-sm" type="button" id="refreshBtn" onclick="autoFillSystemData()"></button>
+                    </div>
+                    <form id="profitForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="periodName">اسم الفترة / التواريخ (15 يوم)</label>
+                                <input type="text" id="periodName" placeholder="مثال: من 1 إلى 15 من الشهر" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="periodSales">إجمالي المبيعات (تلقائي/تعديل)</label>
+                                <input type="number" id="periodSales" min="0" step="any" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="purchaseCost">تكلفة الشراء والمخازن (تلقائي)</label>
+                                <input type="number" id="purchaseCost" min="0" step="any" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="salariesCost">رواتب الموظفين (تلقائي)</label>
+                                <input type="number" id="salariesCost" min="0" step="any" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="generalExpenses">مصروفات عامة (إيجار، مياه، إلخ)</label>
+                                <input type="number" id="generalExpenses" min="0" step="any" value="0" required>
+                            </div>
+                        </div>
+                        <div style="margin-top: 14px;">
+                            <button type="submit" class="btn btn-primary" id="submitBtn" style="min-width: 170px;"></button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="tableCardIcon"></span> سجل فترات الأرباح السابقة</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الفترة (15 يوم)</th>
+                                    <th>إجمالي المبيعات</th>
+                                    <th>تكلفة الشراء</th>
+                                    <th>الرواتب</th>
+                                    <th>مصروفات عامة</th>
+                                    <th>إجمالي المصروفات</th>
+                                    <th>صافي الربح</th>
+                                    <th>حذف</th>
+                                </tr>
+                            </thead>
+                            <tbody id="profitTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        App.requireAuth();
+
+        const currentUser = App.getUser();
+        const storageKey = 'profitList_' + currentUser;
+        let profitData = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+        function autoFillSystemData() {
+            const salesKey = 'salesList_' + currentUser;
+            const salesData = JSON.parse(localStorage.getItem(salesKey)) || [];
+            let totalSales = salesData.reduce((sum, s) => sum + (parseFloat(s.grandTotalPrice) || 0), 0);
+
+            let totalPurchaseCost = 0;
+            const generalInv = JSON.parse(localStorage.getItem('inventoryGeneral_' + currentUser)) || [];
+            generalInv.forEach(i => {
+                const prc = parseFloat(i.price) || 0;
+                if (i.stocks) {
+                    Object.keys(i.stocks).forEach(sz => {
+                        totalPurchaseCost += (parseFloat(i.stocks[sz]) || 0) * prc;
+                    });
+                } else {
+                    totalPurchaseCost += (i.currentStock || 0) * prc;
+                }
+            });
+
+            const singerInv = JSON.parse(localStorage.getItem('inventorySinger_' + currentUser)) || [];
+            singerInv.forEach(i => {
+                totalPurchaseCost += ((i.currentStock || 0) + (parseFloat(i.purchase) || 0)) * (parseFloat(i.price) || 0);
+            });
+
+            const overlockInv = JSON.parse(localStorage.getItem('inventoryOverlock_' + currentUser)) || [];
+            overlockInv.forEach(i => {
+                totalPurchaseCost += ((i.currentStock || 0) + (parseFloat(i.purchase) || 0)) * (parseFloat(i.price) || 0);
+            });
+
+            const salariesKey = 'salariesList_' + currentUser;
+            const salariesData = JSON.parse(localStorage.getItem(salariesKey)) || [];
+            let totalSalaries = salariesData.reduce((sum, sal) => sum + (parseFloat(sal.netDue) || 0), 0);
+
+            document.getElementById('periodSales').value = totalSales.toFixed(2);
+            document.getElementById('purchaseCost').value = totalPurchaseCost.toFixed(2);
+            document.getElementById('salariesCost').value = totalSalaries.toFixed(2);
+        }
+
+        function saveAndRender() {
+            renderTable(profitData);
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.save(storageKey, profitData);
+            } else {
+                localStorage.setItem(storageKey, JSON.stringify(profitData));
+            }
+        }
+
+        function deleteProfit(id) {
+            if (confirm("هل أنت متأكد من حذف هذه الفترة؟")) {
+                profitData = profitData.filter(p => p.id !== id);
+                saveAndRender();
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('profitTableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="color: var(--text-muted); padding: 18px;">لا توجد فترات أرباح مسجلة لهذا الحساب حتى الآن.</td></tr>`;
+                document.getElementById('totalSalesVal').textContent = '0.00 ج.م';
+                document.getElementById('totalExpensesVal').textContent = '0.00 ج.م';
+                document.getElementById('netProfitVal').textContent = '0.00 ج.م';
+                return;
+            }
+
+            let sumSales = 0, sumExpenses = 0, sumNet = 0;
+            data.forEach(item => {
+                sumSales += item.periodSales;
+                sumExpenses += item.totalExpenses;
+                sumNet += item.netProfit;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.periodName}</strong></td>
+                    <td>${item.periodSales.toFixed(2)}</td>
+                    <td>${item.purchaseCost.toFixed(2)}</td>
+                    <td>${item.salariesCost.toFixed(2)}</td>
+                    <td>${item.generalExpenses.toFixed(2)}</td>
+                    <td><strong style="color: var(--danger);">${item.totalExpenses.toFixed(2)}</strong></td>
+                    <td><strong style="color: var(--primary); font-size: 13.5px;">${item.netProfit.toFixed(2)} ج.م</strong></td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteProfit(${item.id})">${App.icon('trash', 12)} حذف</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('totalSalesVal').textContent = sumSales.toFixed(2) + ' ج.م';
+            document.getElementById('totalExpensesVal').textContent = sumExpenses.toFixed(2) + ' ج.م';
+            document.getElementById('netProfitVal').textContent = sumNet.toFixed(2) + ' ج.م';
+        }
+
+        document.getElementById('profitForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const periodName = document.getElementById('periodName').value.trim();
+            const periodSales = parseFloat(document.getElementById('periodSales').value) || 0;
+            const purchaseCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
+            const salariesCost = parseFloat(document.getElementById('salariesCost').value) || 0;
+            const generalExpenses = parseFloat(document.getElementById('generalExpenses').value) || 0;
+
+            const totalExpenses = purchaseCost + salariesCost + generalExpenses;
+            const netProfit = periodSales - totalExpenses;
+
+            profitData.push({ id: Date.now(), periodName, periodSales, purchaseCost, salariesCost, generalExpenses, totalExpenses, netProfit });
+            saveAndRender();
+            this.reset();
+            autoFillSystemData();
+        });
+
+        window.onload = function() {
+            App.initLayout('profit');
+
+            document.getElementById('pageHeaderIcon').innerHTML = App.icon('chart', 20);
+            document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
+            document.getElementById('formCardIcon').innerHTML = App.icon('edit', 16);
+            document.getElementById('refreshBtn').innerHTML = App.icon('reset', 13) + ' <span>تحديث تلقائي</span>';
+            document.getElementById('tableCardIcon').innerHTML = App.icon('receipt', 16);
+            document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تسجيل فترة الأرباح</span>';
+
+            autoFillSystemData();
+            renderTable(profitData);
+
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.subscribe(storageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        profitData = data;
+                        renderTable(profitData);
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>

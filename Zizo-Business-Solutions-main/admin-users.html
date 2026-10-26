@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المستخدمين والصلاحيات - Zizo Solutions</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title" style="display: flex; align-items: center; gap: 12px;">
+                    <button class="mobile-menu-btn" type="button"></button>
+                    <h1><span id="pageHeaderIcon"></span> إدارة المستخدمين والصلاحيات (لوحة المدير)</h1>
+                </div>
+                <div class="top-bar-actions">
+                    <a href="sales.html" class="btn btn-secondary" id="backBtn"></a>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="tableCardIcon"></span> حسابات المستخدمين المسجلة في السحابة</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>اسم المستخدم</th>
+                                    <th>حالة الحساب</th>
+                                    <th>إجراءات الاعتماد</th>
+                                    <th>إجراءات الحظر</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminUsersTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        App.requireAuth(true);
+
+        let currentUsersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
+
+        function renderAdminUsersTable(usersList) {
+            const tbody = document.getElementById('adminUsersTable');
+            tbody.innerHTML = '';
+
+            if (!usersList || usersList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="color: var(--text-muted); padding: 18px;">لا توجد حسابات مستخدمين مسجلة حتى الآن.</td></tr>`;
+                return;
+            }
+
+            usersList.forEach((user, index) => {
+                const isBlocked = !!user.isBlocked;
+                const isApproved = !!user.isApproved;
+
+                let statusBadge = `<span class="badge badge-success">${App.icon('check', 12)} نشط (مصرح)</span>`;
+                if (isBlocked) {
+                    statusBadge = `<span class="badge badge-danger">${App.icon('close', 12)} محظور (موقوف)</span>`;
+                } else if (!isApproved) {
+                    statusBadge = `<span class="badge badge-warning">${App.icon('reset', 12)} قيد المراجعة</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${user.username}</strong></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm ${isApproved ? 'btn-warning' : 'btn-info'}" onclick="toggleApprove(${index})">
+                            ${isApproved ? App.icon('close', 12) + ' سحب الاعتماد' : App.icon('check', 12) + ' اعتماد الحساب'}
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm ${isBlocked ? 'btn-primary' : 'btn-danger'}" onclick="toggleBlock(${index})">
+                            ${isBlocked ? App.icon('check', 12) + ' إلغاء الحظر' : App.icon('trash', 12) + ' حظر الحساب'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function toggleApprove(index) {
+            currentUsersList[index].isApproved = !currentUsersList[index].isApproved;
+            renderAdminUsersTable(currentUsersList);
+            if (typeof FirebaseDB !== 'undefined') {
+                await FirebaseDB.save('systemUsers', currentUsersList);
+            } else {
+                localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+            }
+        }
+
+        async function toggleBlock(index) {
+            currentUsersList[index].isBlocked = !currentUsersList[index].isBlocked;
+            renderAdminUsersTable(currentUsersList);
+            if (typeof FirebaseDB !== 'undefined') {
+                await FirebaseDB.save('systemUsers', currentUsersList);
+            } else {
+                localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+            }
+        }
+
+        window.onload = function() {
+            App.initLayout('admin');
+
+            document.getElementById('pageHeaderIcon').innerHTML = App.icon('shield', 20);
+            document.getElementById('tableCardIcon').innerHTML = App.icon('users', 16);
+            document.getElementById('backBtn').innerHTML = App.icon('arrowRight', 14) + ' <span>العودة للمبيعات</span>';
+
+            renderAdminUsersTable(currentUsersList);
+
+            // الاستماع اللحظي للسحابة
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.subscribe('systemUsers', (data) => {
+                    if (Array.isArray(data)) {
+                        currentUsersList = data;
+                        renderAdminUsersTable(currentUsersList);
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>

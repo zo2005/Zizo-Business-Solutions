@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المخازن - Zizo Solutions</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title" style="display: flex; align-items: center; gap: 12px;">
+                    <button class="mobile-menu-btn" type="button"></button>
+                    <h1><span id="pageHeaderIcon"></span> إدارة المخازن والمخزون</h1>
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn btn-secondary" id="undoBtn" onclick="undoAction()" disabled></button>
+                    <button class="btn btn-secondary" id="redoBtn" onclick="redoAction()" disabled></button>
+                    <button class="btn btn-warning" id="resetBtn" onclick="resetAllFields()"></button>
+                    <button class="btn btn-primary" id="printBtn" onclick="window.print()"></button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="grand-card">
+                    <div>
+                        <h3><span id="grandCardIcon"></span> إجمالي قيمة البضاعة الكلية في المخزن</h3>
+                        <p style="font-size: 12px; opacity: 0.85; margin-top: 2px;">شامل المخزن العام، بكر السنجر، وبكر الأوفر</p>
+                    </div>
+                    <div class="amount" id="overallInventoryVal">0.00 ج.م</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="generalCardIcon"></span> المخزن الرئيسي</div>
+                        <div class="inline-form">
+                            <input type="text" id="new-item-name" placeholder="اسم صنف جديد" onkeypress="if(event.key==='Enter') addNewGeneralItem()">
+                            <button class="btn btn-primary btn-sm" id="addGeneralBtn" onclick="addNewGeneralItem()"></button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الصنف</th>
+                                    <th>المقاس/النوع</th>
+                                    <th>المقاسات</th>
+                                    <th>الشراء</th>
+                                    <th>السعر</th>
+                                    <th>السحب</th>
+                                    <th>المرتجع</th>
+                                    <th>التاريخ</th>
+                                    <th>حفظ</th>
+                                    <th>الإجمالي</th>
+                                    <th>إجمالي السعر</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-body"></tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="10">المجموع الكلي لقيمة المخزن العام</td>
+                                    <td id="grand-total-price" colspan="2">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="singerCardIcon"></span> بكر السنجر (الأكواد والألوان)</div>
+                        <div class="inline-form">
+                            <input type="text" id="new-singer-code" placeholder="الكود" style="max-width: 100px;" onkeypress="if(event.key==='Enter') addSingerRow()">
+                            <input type="text" id="new-singer-color" placeholder="اللون" style="max-width: 120px;" onkeypress="if(event.key==='Enter') addSingerRow()">
+                            <button class="btn btn-primary btn-sm" id="addSingerBtn" onclick="addSingerRow()"></button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الكود</th>
+                                    <th>اللون</th>
+                                    <th>الشراء</th>
+                                    <th>السعر</th>
+                                    <th>السحب</th>
+                                    <th>المرتجع</th>
+                                    <th>التاريخ</th>
+                                    <th>الإجمالي</th>
+                                    <th>إجمالي السعر</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="singer-body"></tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="8">إجمالي قيمة بكر السنجر</td>
+                                    <td id="singer-total-price" colspan="2">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="overlockCardIcon"></span> بكر الأوفر (الألوان)</div>
+                        <div class="inline-form">
+                            <input type="text" id="new-overlock-color" placeholder="لون جديد للبكر" onkeypress="if(event.key==='Enter') addOverlockRow()">
+                            <button class="btn btn-primary btn-sm" id="addOverlockBtn" onclick="addOverlockRow()"></button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>اللون</th>
+                                    <th>الشراء</th>
+                                    <th>السعر</th>
+                                    <th>السحب</th>
+                                    <th>المرتجع</th>
+                                    <th>التاريخ</th>
+                                    <th>الإجمالي</th>
+                                    <th>إجمالي السعر</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overlock-body"></tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="7">إجمالي قيمة بكر الأوفر</td>
+                                    <td id="overlock-total-price" colspan="2">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="historyCardIcon"></span> سجل المعاملات اليومي</div>
+                        <button class="btn btn-danger btn-sm" id="clearHistoryBtn" onclick="deleteAllHistory()"></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>الصنف</th>
+                                    <th>الكمية</th>
+                                    <th>نوع المعاملة</th>
+                                    <th>حذف</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        App.requireAuth();
+
+        const currentUser = App.getUser();
+        const generalStorageKey = 'inventoryGeneral_' + currentUser;
+        const singerStorageKey = 'inventorySinger_' + currentUser;
+        const overlockStorageKey = 'inventoryOverlock_' + currentUser;
+        const historyStorageKey = 'inventoryHistory_' + currentUser;
+
+        const defaultGeneralItems = [
+            { name: 'أكياس', sizes: ['30', '10'], stocks: { '30': 0, '10': 0 }, selectedSize: '30', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'أستك', sizes: ['2 سم'], stocks: { '2 سم': 0 }, selectedSize: '2 سم', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'الكردون', sizes: ['عادي', 'مستورد'], stocks: { 'عادي': 0, 'مستورد': 0 }, selectedSize: 'عادي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'بكر اللزق', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'بكر خام', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'إبر أوفر', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'إبر سنجر', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'إبر أورليه', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'إبر عراوي', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 },
+            { name: 'إبر سلسلة', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 }
+        ];
+
+        let generalItems = JSON.parse(localStorage.getItem(generalStorageKey)) || defaultGeneralItems;
+        let singerItems = JSON.parse(localStorage.getItem(singerStorageKey)) || [];
+        let overlockItems = JSON.parse(localStorage.getItem(overlockStorageKey)) || [];
+        let historyItems = JSON.parse(localStorage.getItem(historyStorageKey)) || [];
+
+        let undoStack = [];
+        let redoStack = [];
+
+        const getTodayDate = () => new Date().toISOString().split('T')[0];
+
+        function pushState() {
+            undoStack.push({
+                general: JSON.parse(JSON.stringify(generalItems)),
+                singer: JSON.parse(JSON.stringify(singerItems)),
+                overlock: JSON.parse(JSON.stringify(overlockItems)),
+                history: JSON.parse(JSON.stringify(historyItems))
+            });
+            if (undoStack.length > 20) undoStack.shift();
+            redoStack = [];
+            updateUndoRedoButtons();
+        }
+
+        function undoAction() {
+            if (undoStack.length === 0) return;
+            redoStack.push({
+                general: JSON.parse(JSON.stringify(generalItems)),
+                singer: JSON.parse(JSON.stringify(singerItems)),
+                overlock: JSON.parse(JSON.stringify(overlockItems)),
+                history: JSON.parse(JSON.stringify(historyItems))
+            });
+            const prev = undoStack.pop();
+            generalItems = prev.general;
+            singerItems = prev.singer;
+            overlockItems = prev.overlock;
+            historyItems = prev.history;
+            saveDataSilent();
+            initInventory();
+            updateUndoRedoButtons();
+        }
+
+        function redoAction() {
+            if (redoStack.length === 0) return;
+            undoStack.push({
+                general: JSON.parse(JSON.stringify(generalItems)),
+                singer: JSON.parse(JSON.stringify(singerItems)),
+                overlock: JSON.parse(JSON.stringify(overlockItems)),
+                history: JSON.parse(JSON.stringify(historyItems))
+            });
+            const next = redoStack.pop();
+            generalItems = next.general;
+            singerItems = next.singer;
+            overlockItems = next.overlock;
+            historyItems = next.history;
+            saveDataSilent();
+            initInventory();
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('undoBtn').disabled = undoStack.length === 0;
+            document.getElementById('redoBtn').disabled = redoStack.length === 0;
+        }
+
+        function saveDataSilent() {
+            localStorage.setItem(generalStorageKey, JSON.stringify(generalItems));
+            localStorage.setItem(singerStorageKey, JSON.stringify(singerItems));
+            localStorage.setItem(overlockStorageKey, JSON.stringify(overlockItems));
+            localStorage.setItem(historyStorageKey, JSON.stringify(historyItems));
+
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.save(generalStorageKey, generalItems);
+                FirebaseDB.save(singerStorageKey, singerItems);
+                FirebaseDB.save(overlockStorageKey, overlockItems);
+                FirebaseDB.save(historyStorageKey, historyItems);
+            }
+        }
+
+        function initInventory() {
+            renderGeneralTable();
+            renderSingerTable();
+            renderOverlockTable();
+            renderHistoryTable();
+            calculateOverallInventoryTotal();
+        }
+
+        function calculateOverallInventoryTotal() {
+            let totalGeneral = 0;
+            generalItems.forEach(item => {
+                const price = parseFloat(item.price) || 0;
+                if (item.stocks) {
+                    Object.keys(item.stocks).forEach(sz => {
+                        totalGeneral += (parseFloat(item.stocks[sz]) || 0) * price;
+                    });
+                }
+            });
+
+            let totalSinger = 0;
+            singerItems.forEach(item => {
+                totalSinger += (item.currentStock || 0) * (parseFloat(item.price) || 0);
+            });
+
+            let totalOverlock = 0;
+            overlockItems.forEach(item => {
+                totalOverlock += (item.currentStock || 0) * (parseFloat(item.price) || 0);
+            });
+
+            document.getElementById('overallInventoryVal').textContent = (totalGeneral + totalSinger + totalOverlock).toFixed(2) + ' ج.م';
+        }
+
+        function resetAllFields() {
+            if (confirm("هل أنت متأكد من تصفير خانات الإدخال؟")) {
+                pushState();
+                generalItems.forEach(i => { i.purchase = 0; i.usage = 0; i.returns = 0; });
+                singerItems.forEach(i => { i.purchase = 0; i.usage = 0; i.returns = 0; });
+                overlockItems.forEach(i => { i.purchase = 0; i.usage = 0; i.returns = 0; });
+                saveDataSilent();
+                initInventory();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function renderGeneralTable() {
+            const body = document.getElementById('inventory-body');
+            body.innerHTML = '';
+            generalItems.forEach((item, index) => {
+                const currentSelSize = item.selectedSize || item.sizes[0];
+                if (!item.stocks) item.stocks = {};
+                if (item.stocks[currentSelSize] === undefined) item.stocks[currentSelSize] = 0;
+
+                const currentStock = item.stocks[currentSelSize];
+                const currentPrice = parseFloat(item.price) || 0;
+                const totalPrice = currentStock * currentPrice;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.name}</strong></td>
+                    <td><select class="item-size" onchange="updateItemSize(${index}, this.value)">${item.sizes.map(s => `<option value="${s}" ${s === currentSelSize ? 'selected' : ''}>${s}</option>`).join('')}</select></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="addSizeToItem(${index})">${App.icon('plus', 12)}</button>
+                        <button class="btn btn-danger btn-sm" onclick="removeSizeFromItem(${index})">${App.icon('minus', 12)}</button>
+                    </td>
+                    <td><input type="text" value="${item.purchase !== undefined ? item.purchase : 0}" onblur="updateGeneralField(${index}, 'purchase', this.value)" onkeypress="if(event.key==='Enter') saveTransactionGeneral(${index})"></td>
+                    <td><input type="text" value="${item.price !== undefined ? item.price : 0}" onblur="updateGeneralField(${index}, 'price', this.value)" onkeypress="if(event.key==='Enter') saveTransactionGeneral(${index})"></td>
+                    <td><input type="text" value="${item.usage !== undefined ? item.usage : 0}" onblur="updateGeneralField(${index}, 'usage', this.value)" onkeypress="if(event.key==='Enter') saveTransactionGeneral(${index})"></td>
+                    <td><input type="text" value="${item.returns !== undefined ? item.returns : 0}" onblur="updateGeneralField(${index}, 'returns', this.value)" onkeypress="if(event.key==='Enter') saveTransactionGeneral(${index})"></td>
+                    <td><input type="date" value="${item.transDate || getTodayDate()}" onchange="updateGeneralField(${index}, 'transDate', this.value)"></td>
+                    <td><button class="btn btn-primary btn-sm" onclick="saveTransactionGeneral(${index})">${App.icon('save', 13)} حفظ</button></td>
+                    <td class="total-stock"><strong>${currentStock}</strong></td>
+                    <td class="total-price">${totalPrice.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" onclick="zeroStockGeneral(${index})">${App.icon('reset', 12)} تصفير</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteGeneralItem(${index})">${App.icon('trash', 12)} حذف</button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            calculateGeneralTotal();
+        }
+
+        function updateGeneralField(index, field, value) {
+            generalItems[index][field] = value;
+            if (field !== 'transDate') {
+                const item = generalItems[index];
+                const currentSelSize = item.selectedSize || item.sizes[0];
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                const existing = (item.stocks && item.stocks[currentSelSize] !== undefined) ? item.stocks[currentSelSize] : 0;
+                const totalStock = existing + pur - usg + ret;
+                const totalPrice = totalStock * prc;
+
+                const row = document.getElementById('inventory-body').rows[index];
+                if (row) {
+                    row.querySelector('.total-stock').textContent = totalStock;
+                    row.querySelector('.total-price').textContent = totalPrice.toFixed(2);
+                }
+            }
+            calculateGeneralTotal();
+            saveDataSilent();
+        }
+
+        function updateItemSize(index, size) {
+            pushState();
+            generalItems[index].selectedSize = size;
+            saveDataSilent();
+            renderGeneralTable();
+            updateUndoRedoButtons();
+        }
+
+        function addNewGeneralItem() {
+            const input = document.getElementById('new-item-name');
+            const name = input.value.trim();
+            if (!name) return alert("يرجى إدخال اسم الصنف.");
+            pushState();
+            generalItems.push({ name, sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0, transDate: getTodayDate() });
+            input.value = '';
+            saveDataSilent();
+            renderGeneralTable();
+            updateUndoRedoButtons();
+        }
+
+        function deleteGeneralItem(index) {
+            if (confirm("هل أنت متأكد من حذف هذا الصنف؟")) {
+                pushState();
+                generalItems.splice(index, 1);
+                saveDataSilent();
+                renderGeneralTable();
+                calculateOverallInventoryTotal();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function addSizeToItem(index) {
+            const size = prompt("يرجى إدخال المقاس/النوع الجديد:");
+            if (!size) return;
+            pushState();
+            if (!generalItems[index].sizes.includes(size)) generalItems[index].sizes.push(size);
+            if (!generalItems[index].stocks) generalItems[index].stocks = {};
+            if (generalItems[index].stocks[size] === undefined) generalItems[index].stocks[size] = 0;
+            generalItems[index].selectedSize = size;
+            saveDataSilent();
+            renderGeneralTable();
+            updateUndoRedoButtons();
+        }
+
+        function removeSizeFromItem(index) {
+            const item = generalItems[index];
+            if (item.sizes.length > 1) {
+                pushState();
+                const cur = item.selectedSize || item.sizes[0];
+                item.sizes = item.sizes.filter(s => s !== cur);
+                delete item.stocks[cur];
+                item.selectedSize = item.sizes[0];
+                saveDataSilent();
+                renderGeneralTable();
+                updateUndoRedoButtons();
+            } else {
+                alert("لا يمكن حذف آخر مقاس للصنف.");
+            }
+        }
+
+        function zeroStockGeneral(index) {
+            const item = generalItems[index];
+            const sz = item.selectedSize || item.sizes[0];
+            if (confirm(`هل تريد تصفير الرصيد لمقاس (${sz})؟`)) {
+                pushState();
+                if (!item.stocks) item.stocks = {};
+                item.stocks[sz] = 0;
+                saveDataSilent();
+                renderGeneralTable();
+                calculateOverallInventoryTotal();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function calculateGeneralTotal() {
+            let total = 0;
+            generalItems.forEach(item => {
+                const prc = parseFloat(item.price) || 0;
+                if (item.stocks) {
+                    Object.keys(item.stocks).forEach(sz => {
+                        total += (parseFloat(item.stocks[sz]) || 0) * prc;
+                    });
+                }
+            });
+            document.getElementById('grand-total-price').textContent = total.toFixed(2);
+            calculateOverallInventoryTotal();
+        }
+
+        function renderSingerTable() {
+            const body = document.getElementById('singer-body');
+            body.innerHTML = '';
+            singerItems.sort((a, b) => {
+                const numA = parseFloat(a.code);
+                const numB = parseFloat(b.code);
+                return (!isNaN(numA) && !isNaN(numB)) ? numA - numB : a.code.localeCompare(b.code, 'ar');
+            });
+
+            singerItems.forEach((item, index) => {
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                const stock = (item.currentStock || 0) + pur - usg + ret;
+                const priceTotal = stock * prc;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.code}</strong></td>
+                    <td><input type="text" value="${item.color || ''}" onblur="updateSingerColor(${index}, this.value)" placeholder="اللون"></td>
+                    <td><input type="text" value="${item.purchase !== undefined ? item.purchase : 0}" onblur="updateSingerField(${index}, 'purchase', this.value)" onkeypress="if(event.key==='Enter') saveTransactionSinger(${index})"></td>
+                    <td><input type="text" value="${item.price !== undefined ? item.price : 0}" onblur="updateSingerField(${index}, 'price', this.value)" onkeypress="if(event.key==='Enter') saveTransactionSinger(${index})"></td>
+                    <td><input type="text" value="${item.usage !== undefined ? item.usage : 0}" onblur="updateSingerField(${index}, 'usage', this.value)" onkeypress="if(event.key==='Enter') saveTransactionSinger(${index})"></td>
+                    <td><input type="text" value="${item.returns !== undefined ? item.returns : 0}" onblur="updateSingerField(${index}, 'returns', this.value)" onkeypress="if(event.key==='Enter') saveTransactionSinger(${index})"></td>
+                    <td><input type="date" value="${item.transDate || getTodayDate()}" onchange="updateSingerField(${index}, 'transDate', this.value)"></td>
+                    <td class="total-stock"><strong>${stock}</strong></td>
+                    <td class="total-price">${priceTotal.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="saveTransactionSinger(${index})">${App.icon('save', 12)} حفظ</button>
+                        <button class="btn btn-warning btn-sm" onclick="zeroStockSinger(${index})">${App.icon('reset', 12)} تصفير</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteSinger(${index})">${App.icon('trash', 12)} حذف</button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            calculateSingerTotal();
+        }
+
+        function updateSingerColor(index, colorVal) {
+            pushState();
+            singerItems[index].color = colorVal;
+            saveDataSilent();
+            updateUndoRedoButtons();
+        }
+
+        function updateSingerField(index, field, value) {
+            singerItems[index][field] = value;
+            if (field !== 'transDate') {
+                const item = singerItems[index];
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                const stock = (item.currentStock || 0) + pur - usg + ret;
+                const row = document.getElementById('singer-body').rows[index];
+                if (row) {
+                    row.querySelector('.total-stock').textContent = stock;
+                    row.querySelector('.total-price').textContent = (stock * prc).toFixed(2);
+                }
+            }
+            calculateSingerTotal();
+            saveDataSilent();
+        }
+
+        function addSingerRow() {
+            const codeInput = document.getElementById('new-singer-code');
+            const colorInput = document.getElementById('new-singer-color');
+            const code = codeInput.value.trim();
+            const color = colorInput.value.trim();
+            if (!code) return alert("يرجى إدخال الكود.");
+            if (singerItems.some(i => i.code.toLowerCase() === code.toLowerCase())) {
+                return alert("تنبيه: هذا الكود موجود مسبقاً في بكر السنجر!");
+            }
+            pushState();
+            singerItems.push({ code, color, purchase: 0, price: 0, usage: 0, returns: 0, currentStock: 0, transDate: getTodayDate() });
+            codeInput.value = '';
+            colorInput.value = '';
+            saveDataSilent();
+            renderSingerTable();
+            updateUndoRedoButtons();
+        }
+
+        function deleteSinger(index) {
+            if (confirm("هل أنت متأكد من حذف هذا الكود؟")) {
+                pushState();
+                singerItems.splice(index, 1);
+                saveDataSilent();
+                renderSingerTable();
+                calculateOverallInventoryTotal();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function zeroStockSinger(index) {
+            if (confirm("هل تريد تصفير الإجمالي لهذا الكود؟")) {
+                pushState();
+                singerItems[index].currentStock = 0;
+                saveDataSilent();
+                renderSingerTable();
+                calculateOverallInventoryTotal();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function calculateSingerTotal() {
+            let total = 0;
+            singerItems.forEach(item => {
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                total += ((item.currentStock || 0) + pur - usg + ret) * prc;
+            });
+            document.getElementById('singer-total-price').textContent = total.toFixed(2);
+            calculateOverallInventoryTotal();
+        }
+
+        function renderOverlockTable() {
+            const body = document.getElementById('overlock-body');
+            body.innerHTML = '';
+            overlockItems.forEach((item, index) => {
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                const stock = (item.currentStock || 0) + pur - usg + ret;
+                const priceTotal = stock * prc;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.color}</strong></td>
+                    <td><input type="text" value="${item.purchase !== undefined ? item.purchase : 0}" onblur="updateOverlockField(${index}, 'purchase', this.value)" onkeypress="if(event.key==='Enter') saveTransactionOverlock(${index})"></td>
+                    <td><input type="text" value="${item.price !== undefined ? item.price : 0}" onblur="updateOverlockField(${index}, 'price', this.value)" onkeypress="if(event.key==='Enter') saveTransactionOverlock(${index})"></td>
+                    <td><input type="text" value="${item.usage !== undefined ? item.usage : 0}" onblur="updateOverlockField(${index}, 'usage', this.value)" onkeypress="if(event.key==='Enter') saveTransactionOverlock(${index})"></td>
+                    <td><input type="text" value="${item.returns !== undefined ? item.returns : 0}" onblur="updateOverlockField(${index}, 'returns', this.value)" onkeypress="if(event.key==='Enter') saveTransactionOverlock(${index})"></td>
+                    <td><input type="date" value="${item.transDate || getTodayDate()}" onchange="updateOverlockField(${index}, 'transDate', this.value)"></td>
+                    <td class="total-stock"><strong>${stock}</strong></td>
+                    <td class="total-price">${priceTotal.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="saveTransactionOverlock(${index})">${App.icon('save', 12)} حفظ</button>
+                        <button class="btn btn-warning btn-sm" onclick="zeroStockOverlock(${index})">${App.icon('reset', 12)} تصفير</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteOverlock(${index})">${App.icon('trash', 12)} حذف</button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            calculateOverlockTotal();
+        }
+
+        function updateOverlockField(index, field, value) {
+            overlockItems[index][field] = value;
+            if (field !== 'transDate') {
+                const item = overlockItems[index];
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                const stock = (item.currentStock || 0) + pur - usg + ret;
+                const row = document.getElementById('overlock-body').rows[index];
+                if (row) {
+                    row.querySelector('.total-stock').textContent = stock;
+                    row.querySelector('.total-price').textContent = (stock * prc).toFixed(2);
+                }
+            }
+            calculateOverlockTotal();
+            saveDataSilent();
+        }
+
+        function addOverlockRow() {
+            const input = document.getElementById('new-overlock-color');
+            const color = input.value.trim();
+            if (!color) return alert("يرجى إدخال اللون.");
+            if (overlockItems.some(i => i.color.toLowerCase() === color.toLowerCase())) {
+                return alert("تنبيه: هذا اللون موجود مسبقاً في بكر الأوفر!");
+            }
+            pushState();
+            overlockItems.push({ color, purchase: 0, price: 0, usage: 0, returns: 0, currentStock: 0, transDate: getTodayDate() });
+            input.value = '';
+            saveDataSilent();
+            renderOverlockTable();
+            updateUndoRedoButtons();
+        }
+
+        function deleteOverlock(index) {
+            if (confirm("هل أنت متأكد من حذف هذا اللون؟")) {
+                pushState();
+                overlockItems.splice(index, 1);
+                saveDataSilent();
+                renderOverlockTable();
+                calculateOverallInventoryTotal();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function zeroStockOverlock(index) {
+            if (confirm("هل تريد تصفير الإجمالي لهذا اللون؟")) {
+                pushState();
+                overlockItems[index].currentStock = 0;
+                saveDataSilent();
+                renderOverlockTable();
+                calculateOverallInventoryTotal();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function calculateOverlockTotal() {
+            let total = 0;
+            overlockItems.forEach(item => {
+                const pur = parseFloat(item.purchase) || 0;
+                const usg = parseFloat(item.usage) || 0;
+                const ret = parseFloat(item.returns) || 0;
+                const prc = parseFloat(item.price) || 0;
+                total += ((item.currentStock || 0) + pur - usg + ret) * prc;
+            });
+            document.getElementById('overlock-total-price').textContent = total.toFixed(2);
+            calculateOverallInventoryTotal();
+        }
+
+        function renderHistoryTable() {
+            const body = document.getElementById('history-body');
+            body.innerHTML = '';
+            if (historyItems.length === 0) {
+                body.innerHTML = `<tr><td colspan="5" style="color: var(--text-muted); padding: 16px;">لا توجد معاملات مسجلة حالياً في السجل.</td></tr>`;
+                return;
+            }
+            historyItems.forEach((hist, index) => {
+                const tr = document.createElement('tr');
+                const badgeClass = hist.type === 'شراء' ? 'badge-success' : (hist.type === 'سحب' ? 'badge-danger' : 'badge-warning');
+                tr.innerHTML = `
+                    <td>${hist.date}</td>
+                    <td><strong>${hist.item}</strong></td>
+                    <td>${hist.qty}</td>
+                    <td><span class="badge ${badgeClass}">${hist.type}</span></td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteHistory(${index})">${App.icon('trash', 12)} حذف</button></td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        function deleteHistory(index) {
+            pushState();
+            historyItems.splice(index, 1);
+            saveDataSilent();
+            renderHistoryTable();
+            updateUndoRedoButtons();
+        }
+
+        function deleteAllHistory() {
+            if (historyItems.length === 0) return alert("السجل فارغ بالفعل!");
+            if (confirm("هل أنت متأكد من حذف جميع المعاملات من السجل اليومي؟")) {
+                pushState();
+                historyItems = [];
+                saveDataSilent();
+                renderHistoryTable();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function saveTransactionGeneral(index) {
+            const item = generalItems[index];
+            const date = item.transDate || getTodayDate();
+            const purchase = parseFloat(item.purchase) || 0;
+            const usage = parseFloat(item.usage) || 0;
+            const returns = parseFloat(item.returns) || 0;
+            if (purchase === 0 && usage === 0 && returns === 0) return alert("يرجى إدخال كمية للشراء أو السحب أو المرتجع.");
+
+            pushState();
+            const sizeLabel = item.selectedSize || item.sizes[0];
+            if (!item.stocks) item.stocks = {};
+            if (item.stocks[sizeLabel] === undefined) item.stocks[sizeLabel] = 0;
+
+            item.stocks[sizeLabel] = item.stocks[sizeLabel] + purchase - usage + returns;
+
+            if (purchase > 0) historyItems.unshift({ date, item: `${item.name} (${sizeLabel})`, qty: purchase, type: 'شراء' });
+            if (usage > 0) historyItems.unshift({ date, item: `${item.name} (${sizeLabel})`, qty: usage, type: 'سحب' });
+            if (returns > 0) historyItems.unshift({ date, item: `${item.name} (${sizeLabel})`, qty: returns, type: 'مرتجع' });
+
+            item.purchase = 0; item.usage = 0; item.returns = 0;
+            saveDataSilent();
+            renderGeneralTable();
+            renderHistoryTable();
+            calculateOverallInventoryTotal();
+            updateUndoRedoButtons();
+        }
+
+        function saveTransactionSinger(index) {
+            const item = singerItems[index];
+            const date = item.transDate || getTodayDate();
+            const purchase = parseFloat(item.purchase) || 0;
+            const usage = parseFloat(item.usage) || 0;
+            const returns = parseFloat(item.returns) || 0;
+            if (purchase === 0 && usage === 0 && returns === 0) return alert("يرجى إدخال كمية.");
+
+            pushState();
+            item.currentStock = (item.currentStock || 0) + purchase - usage + returns;
+            if (purchase > 0) historyItems.unshift({ date, item: `بكر سنجر كود ${item.code}`, qty: purchase, type: 'شراء' });
+            if (usage > 0) historyItems.unshift({ date, item: `بكر سنجر كود ${item.code}`, qty: usage, type: 'سحب' });
+            if (returns > 0) historyItems.unshift({ date, item: `بكر سنجر كود ${item.code}`, qty: returns, type: 'مرتجع' });
+
+            item.purchase = 0; item.usage = 0; item.returns = 0;
+            saveDataSilent();
+            renderSingerTable();
+            renderHistoryTable();
+            calculateOverallInventoryTotal();
+            updateUndoRedoButtons();
+        }
+
+        function saveTransactionOverlock(index) {
+            const item = overlockItems[index];
+            const date = item.transDate || getTodayDate();
+            const purchase = parseFloat(item.purchase) || 0;
+            const usage = parseFloat(item.usage) || 0;
+            const returns = parseFloat(item.returns) || 0;
+            if (purchase === 0 && usage === 0 && returns === 0) return alert("يرجى إدخال كمية.");
+
+            pushState();
+            item.currentStock = (item.currentStock || 0) + purchase - usage + returns;
+            if (purchase > 0) historyItems.unshift({ date, item: `بكر أوفر ${item.color}`, qty: purchase, type: 'شراء' });
+            if (usage > 0) historyItems.unshift({ date, item: `بكر أوفر ${item.color}`, qty: usage, type: 'سحب' });
+            if (returns > 0) historyItems.unshift({ date, item: `بكر أوفر ${item.color}`, qty: returns, type: 'مرتجع' });
+
+            item.purchase = 0; item.usage = 0; item.returns = 0;
+            saveDataSilent();
+            renderOverlockTable();
+            renderHistoryTable();
+            calculateOverallInventoryTotal();
+            updateUndoRedoButtons();
+        }
+
+        window.onload = function() {
+            App.initLayout('dashboard');
+
+            document.getElementById('pageHeaderIcon').innerHTML = App.icon('boxes', 20);
+            document.getElementById('undoBtn').innerHTML = App.icon('undo', 14) + ' <span>تراجع</span>';
+            document.getElementById('redoBtn').innerHTML = App.icon('redo', 14) + ' <span>تقدم</span>';
+            document.getElementById('resetBtn').innerHTML = App.icon('reset', 14) + ' <span>تصفير المدخلات</span>';
+            document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
+
+            document.getElementById('grandCardIcon').innerHTML = App.icon('wallet', 18);
+            document.getElementById('generalCardIcon').innerHTML = App.icon('boxes', 16);
+            document.getElementById('singerCardIcon').innerHTML = App.icon('thread', 16);
+            document.getElementById('overlockCardIcon').innerHTML = App.icon('thread', 16);
+            document.getElementById('historyCardIcon').innerHTML = App.icon('receipt', 16);
+
+            document.getElementById('addGeneralBtn').innerHTML = App.icon('plus', 13) + ' <span>إضافة صنف</span>';
+            document.getElementById('addSingerBtn').innerHTML = App.icon('plus', 13) + ' <span>إضافة كود</span>';
+            document.getElementById('addOverlockBtn').innerHTML = App.icon('plus', 13) + ' <span>إضافة لون</span>';
+            document.getElementById('clearHistoryBtn').innerHTML = App.icon('trash', 13) + ' <span>تفريغ السجل</span>';
+
+            generalItems.forEach(item => {
+                if (!item.stocks) item.stocks = {};
+                item.sizes.forEach(sz => {
+                    if (item.stocks[sz] === undefined) item.stocks[sz] = 0;
+                });
+                if (!item.selectedSize) item.selectedSize = item.sizes[0];
+            });
+            initInventory();
+            updateUndoRedoButtons();
+
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.subscribe(generalStorageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        generalItems = data;
+                        initInventory();
+                    }
+                });
+                FirebaseDB.subscribe(singerStorageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        singerItems = data;
+                        initInventory();
+                    }
+                });
+                FirebaseDB.subscribe(overlockStorageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        overlockItems = data;
+                        initInventory();
+                    }
+                });
+                FirebaseDB.subscribe(historyStorageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        historyItems = data;
+                        renderHistoryTable();
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>

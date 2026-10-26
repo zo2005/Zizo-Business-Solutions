@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الموظفين - Zizo Solutions</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-title" style="display: flex; align-items: center; gap: 12px;">
+                    <button class="mobile-menu-btn" type="button"></button>
+                    <h1><span id="pageHeaderIcon"></span> إدارة الموظفين</h1>
+                </div>
+                <div class="top-bar-actions">
+                    <button class="btn btn-primary" id="printBtn" onclick="window.print()"></button>
+                </div>
+            </header>
+
+            <div class="page-body">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title" id="formTitle"><span>👤</span> إضافة موظف جديد</div>
+                    </div>
+                    <form id="empForm">
+                        <input type="hidden" id="editEmpId" value="">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="empCode">الكود</label>
+                                <input type="text" id="empCode" placeholder="مثال: EMP-01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="empName">الاسم الكامل</label>
+                                <input type="text" id="empName" placeholder="أدخل اسم الموظف" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="nationalId">الرقم القومي</label>
+                                <input type="text" id="nationalId" placeholder="14 رقم" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">رقم الجوال</label>
+                                <input type="text" id="phone" placeholder="01xxxxxxxxx" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="address">العنوان</label>
+                                <input type="text" id="address" placeholder="العنوان بالتفصيل" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="hireDate">تاريخ البدء / التعيين</label>
+                                <input type="date" id="hireDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="salary">الراتب الأساسي الشهري (ج.م)</label>
+                                <input type="number" id="salary" min="0" step="0.01" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="cardImg">صورة البطاقة الشخصية</label>
+                                <input type="file" id="cardImg" accept="image/*">
+                            </div>
+                        </div>
+                        <div style="margin-top: 14px;">
+                            <button type="submit" class="btn btn-primary" id="submitEmpBtn" style="min-width: 140px;"></button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><span id="tableCardIcon"></span> قائمة الموظفين</div>
+                        <div style="width: 260px; position: relative;">
+                            <input type="text" id="searchInput" placeholder="بحث بالاسم أو الكود..." onkeyup="filterData()" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الكود</th>
+                                    <th>الاسم</th>
+                                    <th>الرقم القومي</th>
+                                    <th>الجوال</th>
+                                    <th>العنوان</th>
+                                    <th>تاريخ التعيين</th>
+                                    <th>الراتب الشهري</th>
+                                    <th>صورة البطاقة</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="empTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        App.requireAuth();
+
+        const currentUser = App.getUser();
+        const storageKey = 'employeesList_' + currentUser;
+        let employees = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+        function saveAndRender() {
+            renderTable(employees);
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.save(storageKey, employees);
+            } else {
+                localStorage.setItem(storageKey, JSON.stringify(employees));
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('empTableBody');
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="color: var(--text-muted); padding: 18px;">لا توجد موظفين مسجلين لهذا الحساب حتى الآن.</td></tr>`;
+                return;
+            }
+            data.forEach(emp => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${emp.code || '-'}</strong></td>
+                    <td><strong>${emp.name || '-'}</strong></td>
+                    <td>${emp.nationalId || '-'}</td>
+                    <td>${emp.phone || '-'}</td>
+                    <td>${emp.address || '-'}</td>
+                    <td>${emp.hireDate || '-'}</td>
+                    <td><strong style="color: var(--primary);">${(emp.salary || 0).toFixed(2)} ج.م</strong></td>
+                    <td><img src="${emp.imgUrl}" class="img-thumb" onclick="App.showModalImage('${emp.imgUrl}')" alt="البطاقة"></td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editEmp(${emp.id})">${App.icon('edit', 12)} تعديل</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmp(${emp.id})">${App.icon('trash', 12)} حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterData() {
+            const q = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filtered = employees.filter(e =>
+                (e.name && e.name.toLowerCase().includes(q)) ||
+                (e.code && e.code.toLowerCase().includes(q))
+            );
+            renderTable(filtered);
+        }
+
+        function deleteEmp(id) {
+            if (confirm("هل أنت متأكد من حذف هذا الموظف؟")) {
+                employees = employees.filter(e => e.id !== id);
+                saveAndRender();
+            }
+        }
+
+        function editEmp(id) {
+            const emp = employees.find(e => e.id === id);
+            if (emp) {
+                document.getElementById('editEmpId').value = emp.id;
+                document.getElementById('empCode').value = emp.code || '';
+                document.getElementById('empName').value = emp.name || '';
+                document.getElementById('nationalId').value = emp.nationalId || '';
+                document.getElementById('phone').value = emp.phone || '';
+                document.getElementById('address').value = emp.address || '';
+                document.getElementById('hireDate').value = emp.hireDate || '';
+                document.getElementById('salary').value = emp.salary || '';
+
+                document.getElementById('formTitle').innerHTML = App.icon('edit', 16) + ' <span>تعديل بيانات الموظف</span>';
+                document.getElementById('submitEmpBtn').innerHTML = App.icon('check', 14) + ' <span>حفظ التعديلات</span>';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        document.getElementById('empForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const code = document.getElementById('empCode').value.trim();
+            const name = document.getElementById('empName').value.trim();
+            const nationalId = document.getElementById('nationalId').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const address = document.getElementById('address').value.trim();
+            const hireDate = document.getElementById('hireDate').value;
+            const salary = parseFloat(document.getElementById('salary').value) || 0;
+            const editId = document.getElementById('editEmpId').value;
+            const imgInput = document.getElementById('cardImg');
+
+            let existingImg = 'https://via.placeholder.com/40?text=No+Img';
+            if (editId) {
+                const found = employees.find(emp => emp.id == editId);
+                if (found && found.imgUrl) existingImg = found.imgUrl;
+            }
+
+            if (imgInput.files && imgInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    saveEmpData(editId, code, name, nationalId, phone, address, hireDate, salary, evt.target.result);
+                };
+                reader.readAsDataURL(imgInput.files[0]);
+            } else {
+                saveEmpData(editId, code, name, nationalId, phone, address, hireDate, salary, existingImg);
+            }
+        });
+
+        function saveEmpData(editId, code, name, nationalId, phone, address, hireDate, salary, imgUrl) {
+            if (editId) {
+                const index = employees.findIndex(e => e.id == editId);
+                if (index > -1) {
+                    employees[index] = { id: parseInt(editId), code, name, nationalId, phone, address, hireDate, salary, imgUrl };
+                }
+                document.getElementById('editEmpId').value = '';
+                document.getElementById('formTitle').innerHTML = App.icon('user', 16) + ' <span>إضافة موظف جديد</span>';
+                document.getElementById('submitEmpBtn').innerHTML = App.icon('plus', 14) + ' <span>إضافة موظف</span>';
+            } else {
+                employees.push({ id: Date.now(), code, name, nationalId, phone, address, hireDate, salary, imgUrl });
+            }
+
+            saveAndRender();
+            document.getElementById('empForm').reset();
+            document.getElementById('hireDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        window.onload = function() {
+            App.initLayout('employees');
+
+            document.getElementById('pageHeaderIcon').innerHTML = App.icon('users', 20);
+            document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
+            document.getElementById('formTitle').innerHTML = App.icon('user', 16) + ' <span>إضافة موظف جديد</span>';
+            document.getElementById('tableCardIcon').innerHTML = App.icon('users', 16);
+            document.getElementById('submitEmpBtn').innerHTML = App.icon('plus', 14) + ' <span>إضافة موظف</span>';
+
+            document.getElementById('hireDate').value = new Date().toISOString().split('T')[0];
+            renderTable(employees);
+
+            if (typeof FirebaseDB !== 'undefined') {
+                FirebaseDB.subscribe(storageKey, (data) => {
+                    if (Array.isArray(data)) {
+                        employees = data;
+                        renderTable(employees);
+                    }
+                });
+            }
+        };
+    </script>
+</body>
+</html>
