@@ -39,6 +39,9 @@
         document.getElementById('authLogoIcon').innerHTML = App.icon('factory', 26);
         document.getElementById('loginBtn').innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
 
+        // مسح أي جلسة قديمة محفوظة في localStorage فور فتح صفحة الدخول
+        localStorage.removeItem('isLoggedIn');
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const user = document.getElementById('username').value.trim();
@@ -68,7 +71,7 @@
             if ((user === 'Zizo2312005' || user === 'admin') && (pass === adminSavedPass || pass === '200522004')) {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', 'admin');
-                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', 'admin');
                 const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
                 sessionStorage.removeItem('redirectAfterLogin');
@@ -104,7 +107,7 @@
                 }
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', foundUser.username);
-                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', foundUser.username);
                 const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
                 sessionStorage.removeItem('redirectAfterLogin');

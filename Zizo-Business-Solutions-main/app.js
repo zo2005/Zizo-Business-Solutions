@@ -44,13 +44,11 @@ const App = {
     },
 
     isLoggedIn() {
-        return sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
+        return sessionStorage.getItem('isLoggedIn') === 'true';
     },
 
     requireAuth(requireAdmin = false) {
         if (!this.isLoggedIn()) {
-            sessionStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('isLoggedIn');
             sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'sales.html');
             window.location.replace('index.html');
             return false;
@@ -59,8 +57,6 @@ const App = {
             window.location.replace('sales.html');
             return false;
         }
-        sessionStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('isLoggedIn', 'true');
         return true;
     },
 

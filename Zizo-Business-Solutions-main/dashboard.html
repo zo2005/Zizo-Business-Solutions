@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المخازن - Zizo Solutions</title>
     <script>
-        const isAuth = sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
+        localStorage.removeItem('isLoggedIn');
+        const isAuth = sessionStorage.getItem('isLoggedIn') === 'true';
         if (!isAuth) {
             sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'dashboard.html');
             window.location.replace('index.html');
@@ -861,3 +862,4 @@
     </script>
 </body>
 </html>
+
