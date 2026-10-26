@@ -6,6 +6,7 @@
     <title>Zizo Solutions</title>
     <script>
         // درع الحماية: تحويل أي رابط غير معروف فوراً إلى صفحة تسجيل الدخول
+        sessionStorage.removeItem('isLoggedIn');
         window.location.replace('index.html');
     </script>
 </head>

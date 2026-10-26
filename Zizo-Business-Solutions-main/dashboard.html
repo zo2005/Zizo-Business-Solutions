@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المخازن - Zizo Solutions</title>
     <script>
-        if (localStorage.getItem('isLoggedIn') !== 'true') {
+        if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+            sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'dashboard.html');
             window.location.replace('index.html');
         }
     </script>

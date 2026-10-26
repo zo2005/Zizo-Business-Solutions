@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المستخدمين والصلاحيات - Zizo Solutions</title>
     <script>
-        if (localStorage.getItem('isLoggedIn') !== 'true') {
+        if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+            sessionStorage.setItem('redirectAfterLogin', 'admin-users.html');
             window.location.replace('index.html');
-        } else if (localStorage.getItem('currentUser') !== 'admin') {
+        } else if (sessionStorage.getItem('currentUser') !== 'admin' && localStorage.getItem('currentUser') !== 'admin') {
             window.location.replace('sales.html');
         }
     </script>

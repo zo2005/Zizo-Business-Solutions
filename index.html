@@ -57,9 +57,13 @@
 
             // حساب الإدارة الرئيسي (دخول مباشر)
             if (user === 'Zizo2312005' && pass === '200522004') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('currentUser', 'admin');
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('currentUser', 'admin');
-                window.location.href = 'sales.html';
+                const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
+                sessionStorage.removeItem('redirectAfterLogin');
+                window.location.href = target;
                 return;
             }
 
@@ -89,9 +93,13 @@
                     alert("الحساب في انتظار موافقة الإدارة.");
                     return;
                 }
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('currentUser', foundUser.username);
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('currentUser', foundUser.username);
-                window.location.href = 'sales.html';
+                const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
+                sessionStorage.removeItem('redirectAfterLogin');
+                window.location.href = target;
                 return;
             }
 

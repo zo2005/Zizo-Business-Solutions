@@ -34,15 +34,18 @@ const App = {
     },
 
     getUser() {
-        return localStorage.getItem('currentUser') || 'default_user';
+        return sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || 'default_user';
     },
 
     isLoggedIn() {
-        return localStorage.getItem('isLoggedIn') === 'true';
+        return sessionStorage.getItem('isLoggedIn') === 'true';
     },
 
     requireAuth(requireAdmin = false) {
         if (!this.isLoggedIn()) {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('currentUser');
+            sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'sales.html');
             window.location.replace('index.html');
             return false;
         }
@@ -54,9 +57,10 @@ const App = {
     },
 
     logout() {
+        sessionStorage.clear();
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('currentUser');
-        window.location.href = 'index.html';
+        window.location.replace('index.html');
     },
 
     formatCurrency(num) {
