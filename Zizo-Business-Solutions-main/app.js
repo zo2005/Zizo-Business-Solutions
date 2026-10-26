@@ -43,11 +43,11 @@ const App = {
 
     requireAuth(requireAdmin = false) {
         if (!this.isLoggedIn()) {
-            window.location.href = 'index.html';
+            window.location.replace('index.html');
             return false;
         }
         if (requireAdmin && this.getUser() !== 'admin') {
-            window.location.href = 'sales.html';
+            window.location.replace('sales.html');
             return false;
         }
         return true;

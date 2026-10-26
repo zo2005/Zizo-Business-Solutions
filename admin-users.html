@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المستخدمين والصلاحيات - Zizo Solutions</title>
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.replace('index.html');
+        } else if (localStorage.getItem('currentUser') !== 'admin') {
+            window.location.replace('sales.html');
+        }
+    </script>
     <link rel="stylesheet" href="app.css">
 </head>
 <body>
