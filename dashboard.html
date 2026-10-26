@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المخازن - Zizo Solutions</title>
     <script>
-        if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+        const isAuth = sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
+        if (!isAuth) {
             sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'dashboard.html');
             window.location.replace('index.html');
+        } else {
+            sessionStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
     <link rel="stylesheet" href="app.css">

@@ -5,11 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة المستخدمين والصلاحيات - Zizo Solutions</title>
     <script>
-        if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+        const isAuth = sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
+        const user = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '';
+        const isAdmin = user === 'admin' || user === 'Zizo2312005';
+        if (!isAuth) {
             sessionStorage.setItem('redirectAfterLogin', 'admin-users.html');
             window.location.replace('index.html');
-        } else if (sessionStorage.getItem('currentUser') !== 'admin' && localStorage.getItem('currentUser') !== 'admin') {
+        } else if (!isAdmin) {
             window.location.replace('sales.html');
+        } else {
+            sessionStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
     <link rel="stylesheet" href="app.css">
@@ -42,6 +48,7 @@
                                     <th>حالة الحساب</th>
                                     <th>إجراءات الاعتماد</th>
                                     <th>إجراءات الحظر</th>
+                                    <th>حذف الحساب نهائياً</th>
                                 </tr>
                             </thead>
                             <tbody id="adminUsersTable"></tbody>
@@ -93,12 +100,31 @@
                     </td>
                     <td>
                         <button class="btn btn-sm ${isBlocked ? 'btn-primary' : 'btn-danger'}" onclick="toggleBlock(${index})">
-                            ${isBlocked ? App.icon('check', 12) + ' إلغاء الحظر' : App.icon('trash', 12) + ' حظر الحساب'}
+                            ${isBlocked ? App.icon('check', 12) + ' إلغاء الحظر' : App.icon('close', 12) + ' حظر الحساب'}
+                        </button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" style="background-color: #b91c1c; border-color: #991b1b;" onclick="deleteUser(${index})">
+                            ${App.icon('trash', 12)} حذف المستخدم
                         </button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        async function deleteUser(index) {
+            const user = currentUsersList[index];
+            if (!user) return;
+            if (confirm(`تحذير: هل أنت متأكد من حذف حساب (${user.username}) نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+                currentUsersList.splice(index, 1);
+                renderAdminUsersTable(currentUsersList);
+                if (typeof FirebaseDB !== 'undefined') {
+                    await FirebaseDB.save('systemUsers', currentUsersList);
+                } else {
+                    localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+                }
+            }
         }
 
         async function toggleApprove(index) {

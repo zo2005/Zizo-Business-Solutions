@@ -37,22 +37,29 @@ const App = {
         return sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || 'default_user';
     },
 
+    isAdmin() {
+        const u = this.getUser();
+        return u === 'admin' || u === 'Zizo2312005';
+    },
+
     isLoggedIn() {
-        return sessionStorage.getItem('isLoggedIn') === 'true';
+        return sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
     },
 
     requireAuth(requireAdmin = false) {
         if (!this.isLoggedIn()) {
             sessionStorage.removeItem('isLoggedIn');
-            sessionStorage.removeItem('currentUser');
+            localStorage.removeItem('isLoggedIn');
             sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'sales.html');
             window.location.replace('index.html');
             return false;
         }
-        if (requireAdmin && this.getUser() !== 'admin') {
+        if (requireAdmin && !this.isAdmin()) {
             window.location.replace('sales.html');
             return false;
         }
+        sessionStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('isLoggedIn', 'true');
         return true;
     },
 
@@ -70,7 +77,7 @@ const App = {
 
     initLayout(activeKey = '') {
         const user = this.getUser();
-        const isAdmin = user === 'admin';
+        const isAdmin = this.isAdmin();
 
         const navLinks = [
             { key: 'dashboard', href: 'dashboard.html', icon: 'boxes', text: 'الرئيسية (المخازن)' },
