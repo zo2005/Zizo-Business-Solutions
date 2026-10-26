@@ -11,23 +11,24 @@
         <div class="auth-header">
             <div class="auth-header-icon" id="regLogoIcon"></div>
             <h2>إنشاء حساب جديد</h2>
-            <p>انضم إلى نظام إدارة المصنع السحابي</p>
+            <p>انضم إلى نظام إدارة المصنع الذكي</p>
         </div>
         <form id="regForm">
             <div class="form-group" style="margin-bottom: 14px;">
-                <label for="newUsername">اسم المستخدم</label>
-                <input type="text" id="newUsername" placeholder="اختر اسم مستخدم" required autocomplete="username">
+                <label for="newUsername">اسم المستخدم (بالإنجليزي فقط)</label>
+                <input type="text" id="newUsername" placeholder="مثال: Ahmed_2025" required autocomplete="username" pattern="[A-Za-z0-9_.-]+" title="يرجى كتابة اسم المستخدم باللغة الإنجليزية والأرقام فقط">
+                <small style="color: var(--text-muted); font-size: 11px;">مسموح بالحروف الإنجليزية والأرقام والرموز (_ . -) بدون مسافات</small>
             </div>
             <div class="form-group" style="margin-bottom: 20px;">
-                <label for="newPassword">كلمة المرور</label>
-                <input type="password" id="newPassword" placeholder="اكتب كلمة المرور" required autocomplete="new-password">
+                <label for="newPassword">كلمة المرور (بالإنجليزي فقط)</label>
+                <input type="password" id="newPassword" placeholder="اكتب كلمة المرور (إنجليزي فقط)" required autocomplete="new-password">
+                <small style="color: var(--text-muted); font-size: 11px;">يجب أن تكون كلمة المرور باللغة الإنجليزية أو الأرقام فقط</small>
             </div>
             <button type="submit" class="btn btn-primary btn-block" id="regBtn" style="padding: 11px;"></button>
-            <div class="alert-msg success" id="successMsg">تم إنشاء الحساب بنجاح وحفظه سحابياً! جاري تحويلك لتسجيل الدخول...</div>
+            <div class="alert-msg success" id="successMsg">تم إنشاء الحساب بنجاح! جاري تحويلك لتسجيل الدخول...</div>
         </form>
-        <div class="auth-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="auth-footer" style="text-align: center;">
             <a href="index.html">العودة لتسجيل الدخول</a>
-            <span id="firebaseStatusBadge" style="display:flex; align-items:center;"></span>
         </div>
     </div>
 
@@ -40,10 +41,6 @@
         document.getElementById('regLogoIcon').innerHTML = App.icon('sparkles', 24);
         document.getElementById('regBtn').innerHTML = App.icon('check', 16) + ' <span>تسجيل الحساب</span>';
 
-        if (typeof FirebaseDB !== 'undefined') {
-            FirebaseDB.updateStatusBadge(FirebaseDB.status);
-        }
-
         document.getElementById('regForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const username = document.getElementById('newUsername').value.trim();
@@ -52,8 +49,23 @@
 
             if (!username || !password) return;
 
+            const englishRegex = /^[A-Za-z0-9_.-]+$/;
+            const arabicRegex = /[\u0600-\u06FF]/;
+
+            // التحقق من أن اسم المستخدم بالإنجليزي فقط
+            if (!englishRegex.test(username)) {
+                alert("تنبيه: يجب أن يكون اسم المستخدم بالحروف الإنجليزية والأرقام فقط وبدون مسافات.");
+                return;
+            }
+
+            // التحقق من أن كلمة المرور بدون حروف عربية
+            if (arabicRegex.test(password)) {
+                alert("تنبيه: يجب أن تكون كلمة المرور بالحروف الإنجليزية أو الأرقام فقط (ممنوع الحروف العربية).");
+                return;
+            }
+
             regBtn.disabled = true;
-            regBtn.innerHTML = App.icon('sparkles', 16) + ' <span>جاري حفظ الحساب سحابياً...</span>';
+            regBtn.innerHTML = App.icon('sparkles', 16) + ' <span>جاري إنشاء الحساب...</span>';
 
             let usersList = [];
             if (typeof FirebaseDB !== 'undefined') {
@@ -63,7 +75,7 @@
                 usersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
             }
 
-            if (usersList.some(u => u.username.toLowerCase() === username.toLowerCase()) || username.toLowerCase() === 'admin') {
+            if (usersList.some(u => u.username.toLowerCase() === username.toLowerCase()) || username.toLowerCase() === 'admin' || username.toLowerCase() === 'zizo2312005') {
                 alert("اسم المستخدم هذا موجود بالفعل، يرجى اختيار اسم آخر.");
                 regBtn.disabled = false;
                 regBtn.innerHTML = App.icon('check', 16) + ' <span>تسجيل الحساب</span>';

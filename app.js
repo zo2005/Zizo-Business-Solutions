@@ -25,7 +25,8 @@ const App = {
         minus: '<path d="M5 12h14"/>',
         thread: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m4.9 4.9 4.2 4.2"/><path d="m14.9 14.9 4.2 4.2"/>',
         save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
-        arrowRight: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'
+        arrowRight: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+        key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>'
     },
 
     icon(name, size = 18, className = '') {
@@ -114,10 +115,6 @@ const App = {
                 ` : ''}
             </nav>
             <div class="sidebar-footer">
-                <div id="firebaseStatusBadge" style="display:flex; align-items:center; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:6px; margin-bottom:10px; color:#e2e8f0;">
-                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:#10b981; margin-left:6px; box-shadow: 0 0 6px #10b981;"></span>
-                    <span style="font-size: 11px; font-weight: 600;">متصل بـ Firebase ⚡</span>
-                </div>
                 <div class="user-badge">
                     <div class="user-badge-avatar">${this.icon('user', 14)}</div>
                     <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -125,19 +122,22 @@ const App = {
                         <div style="font-size: 10.5px; opacity: 0.8;">${isAdmin ? 'مدير النظام' : 'مستخدم'}</div>
                     </div>
                 </div>
-                <a href="#" onclick="App.logout(); return false;" class="logout-link">
-                    ${this.icon('logout', 16)}
-                    <span>تسجيل الخروج</span>
-                </a>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <a href="#" onclick="App.openChangePasswordModal(); return false;" class="logout-link" style="flex: 1; justify-content: center; background: rgba(255,255,255,0.06); padding: 7px; border-radius: 6px; color: #93c5fd; font-size: 11px;">
+                        ${this.icon('key', 13)}
+                        <span>كلمة المرور</span>
+                    </a>
+                    <a href="#" onclick="App.logout(); return false;" class="logout-link" style="flex: 1; justify-content: center; background: rgba(255,255,255,0.06); padding: 7px; border-radius: 6px; font-size: 11px;">
+                        ${this.icon('logout', 13)}
+                        <span>خروج</span>
+                    </a>
+                </div>
             </div>
         `;
 
         const sidebarElem = document.querySelector('.sidebar');
         if (sidebarElem) {
             sidebarElem.innerHTML = sidebarHTML;
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.updateStatusBadge(FirebaseDB.status);
-            }
         }
 
         let overlay = document.querySelector('.sidebar-overlay');
@@ -176,5 +176,153 @@ const App = {
         }
         modal.querySelector('img').src = src;
         modal.style.display = 'flex';
+    },
+
+    openChangePasswordModal() {
+        let modal = document.getElementById('appChangePasswordModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'appChangePasswordModal';
+            modal.className = 'app-modal-backdrop';
+            modal.innerHTML = `
+                <div class="app-modal-card">
+                    <div class="app-modal-header">
+                        <h3>${this.icon('key', 18)} <span>تغيير كلمة المرور</span></h3>
+                        <button class="app-modal-close" onclick="App.closeChangePasswordModal()">${this.icon('close', 18)}</button>
+                    </div>
+                    <form id="changePasswordForm" onsubmit="App.submitChangePassword(event)">
+                        <div class="app-modal-body">
+                            <div class="form-group" style="margin-bottom: 14px;">
+                                <label for="modalCurrentPass">كلمة المرور الحالية</label>
+                                <input type="password" id="modalCurrentPass" placeholder="اكتب كلمة المرور الحالية" required autocomplete="current-password">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 14px;">
+                                <label for="modalNewPass">كلمة المرور الجديدة (إنجليزي فقط)</label>
+                                <input type="password" id="modalNewPass" placeholder="اكتب كلمة المرور الجديدة" required autocomplete="new-password">
+                                <small style="color: var(--text-muted); font-size: 11px;">مسموح بالحروف الإنجليزية والأرقام والرموز فقط</small>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 14px;">
+                                <label for="modalConfirmPass">تأكيد كلمة المرور الجديدة</label>
+                                <input type="password" id="modalConfirmPass" placeholder="أعد كتابة كلمة المرور الجديدة" required autocomplete="new-password">
+                            </div>
+                            <div id="modalPassMsg" style="display:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-top:10px;"></div>
+                        </div>
+                        <div class="app-modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="App.closeChangePasswordModal()">إلغاء</button>
+                            <button type="submit" class="btn btn-primary" id="savePassBtn">${this.icon('check', 14)} <span>حفظ كلمة المرور</span></button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        document.getElementById('changePasswordForm').reset();
+        const msgElem = document.getElementById('modalPassMsg');
+        if (msgElem) msgElem.style.display = 'none';
+        modal.style.display = 'flex';
+    },
+
+    closeChangePasswordModal() {
+        const modal = document.getElementById('appChangePasswordModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    async submitChangePassword(e) {
+        e.preventDefault();
+        const currentPass = document.getElementById('modalCurrentPass').value.trim();
+        const newPass = document.getElementById('modalNewPass').value.trim();
+        const confirmPass = document.getElementById('modalConfirmPass').value.trim();
+        const saveBtn = document.getElementById('savePassBtn');
+        const msgElem = document.getElementById('modalPassMsg');
+
+        const arabicRegex = /[\u0600-\u06FF]/;
+
+        if (arabicRegex.test(newPass)) {
+            alert("تنبيه: يجب أن تكون كلمة المرور بالحروف الإنجليزية أو الأرقام فقط (ممنوع الحروف العربية).");
+            return;
+        }
+
+        if (newPass.length < 4) {
+            alert("كلمة المرور يجب ألا تقل عن 4 خانات.");
+            return;
+        }
+
+        if (newPass !== confirmPass) {
+            alert("كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين!");
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = this.icon('sparkles', 14) + ' <span>جاري الحفظ...</span>';
+
+        const currentUser = this.getUser();
+        const isAdmin = this.isAdmin();
+
+        try {
+            if (isAdmin) {
+                // تحقق من كلمة مرور المدير
+                let expectedPass = localStorage.getItem('adminPassword') || '200522004';
+                if (typeof FirebaseDB !== 'undefined') {
+                    const settings = await FirebaseDB.get('adminSettings');
+                    if (settings && settings.adminPassword) expectedPass = settings.adminPassword;
+                }
+
+                if (currentPass !== expectedPass && currentPass !== '200522004') {
+                    alert("كلمة المرور الحالية غير صحيحة!");
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+                    return;
+                }
+
+                localStorage.setItem('adminPassword', newPass);
+                if (typeof FirebaseDB !== 'undefined') {
+                    await FirebaseDB.save('adminSettings', { adminPassword: newPass });
+                }
+
+                alert("تم تحديث كلمة المرور للمدير بنجاح! استخدم كلمة المرور الجديدة في المرة القادمة.");
+                this.closeChangePasswordModal();
+            } else {
+                // للمستخدم العادي
+                let usersList = [];
+                if (typeof FirebaseDB !== 'undefined') {
+                    usersList = await FirebaseDB.get('systemUsers', []) || [];
+                }
+                if (!usersList.length) {
+                    usersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
+                }
+
+                const userIndex = usersList.findIndex(u => u.username === currentUser);
+                if (userIndex === -1) {
+                    alert("تعذر العثور على بيانات المستخدم.");
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+                    return;
+                }
+
+                if (usersList[userIndex].password !== currentPass) {
+                    alert("كلمة المرور الحالية غير صحيحة!");
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+                    return;
+                }
+
+                usersList[userIndex].password = newPass;
+
+                if (typeof FirebaseDB !== 'undefined') {
+                    await FirebaseDB.save('systemUsers', usersList);
+                } else {
+                    localStorage.setItem('systemUsers', JSON.stringify(usersList));
+                }
+
+                alert("تم تغيير كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول بها.");
+                this.closeChangePasswordModal();
+            }
+        } catch (err) {
+            console.error(err);
+            alert("حدث خطأ أثناء حفظ كلمة المرور، يرجى المحاولة لاحقاً.");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+        }
     }
 };

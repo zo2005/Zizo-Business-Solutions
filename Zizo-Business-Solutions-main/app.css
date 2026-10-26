@@ -815,3 +815,73 @@ table select.item-size {
         background: #ffffff;
     }
 }
+
+/* Modal for Change Password and Popups */
+.app-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 37, 32, 0.65);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.app-modal-card {
+    background: #ffffff;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: appModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes appModalIn {
+    from { opacity: 0; transform: scale(0.94) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.app-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+}
+.app-modal-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.app-modal-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: all 0.15s ease;
+}
+.app-modal-close:hover {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+.app-modal-body {
+    padding: 20px;
+}
+.app-modal-footer {
+    padding: 14px 20px;
+    background: var(--surface-hover);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
