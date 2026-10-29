@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إنشاء حساب جديد - Zizo Solutions</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="stylesheet" href="app.css">
 </head>
 <body class="auth-page">
@@ -38,7 +39,7 @@
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
-        document.getElementById('regLogoIcon').innerHTML = App.icon('sparkles', 24);
+        document.getElementById('regLogoIcon').innerHTML = '<span>Z</span>';
         document.getElementById('regBtn').innerHTML = App.icon('check', 16) + ' <span>تسجيل الحساب</span>';
 
         document.getElementById('regForm').addEventListener('submit', async function(e) {
@@ -82,7 +83,11 @@
                 return;
             }
 
+            // توليد User ID ثابت فريد لكل مستخدم (لا يتغير حتى لو غيّر الاسم أو كلمة المرور)
+            const uid = 'uid_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+
             const newUser = {
+                uid,
                 username,
                 password,
                 isBlocked: false,

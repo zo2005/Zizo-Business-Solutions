@@ -20,6 +20,7 @@
         }
     </script>
     <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
 <body>
     <div class="dashboard-container">
@@ -46,6 +47,7 @@
                             <thead>
                                 <tr>
                                     <th>اسم المستخدم</th>
+                                    <th>معرّف الحساب (ID)</th>
                                     <th>حالة الحساب</th>
                                     <th>إجراءات الاعتماد</th>
                                     <th>إجراءات الحظر</th>
@@ -75,7 +77,7 @@
             tbody.innerHTML = '';
 
             if (!usersList || usersList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="color: var(--text-muted); padding: 18px;">لا توجد حسابات مستخدمين مسجلة حتى الآن.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="color: var(--text-muted); padding: 18px;">لا توجد حسابات مستخدمين مسجلة حتى الآن.</td></tr>`;
                 return;
             }
 
@@ -93,6 +95,7 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${user.username}</strong></td>
+                    <td><code style="font-size: 10.5px; background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; user-select: all;">${user.uid || 'بدون ID (قديم)'}</code></td>
                     <td>${statusBadge}</td>
                     <td>
                         <button class="btn btn-sm ${isApproved ? 'btn-warning' : 'btn-info'}" onclick="toggleApprove(${index})">
@@ -170,4 +173,6 @@
     </script>
 </body>
 </html>
+
+
 

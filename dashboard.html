@@ -16,6 +16,7 @@
         }
     </script>
     <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
 <body>
     <div class="dashboard-container">
@@ -184,10 +185,11 @@
         App.requireAuth();
 
         const currentUser = App.getUser();
-        const generalStorageKey = 'inventoryGeneral_' + currentUser;
-        const singerStorageKey = 'inventorySinger_' + currentUser;
-        const overlockStorageKey = 'inventoryOverlock_' + currentUser;
-        const historyStorageKey = 'inventoryHistory_' + currentUser;
+        const userId = App.getUserId();
+        const generalStorageKey = 'inventoryGeneral_' + userId;
+        const singerStorageKey = 'inventorySinger_' + userId;
+        const overlockStorageKey = 'inventoryOverlock_' + userId;
+        const historyStorageKey = 'inventoryHistory_' + userId;
 
         const defaultGeneralItems = [
             { name: 'أكياس', sizes: ['30', '10'], stocks: { '30': 0, '10': 0 }, selectedSize: '30', purchase: 0, price: 0, usage: 0, returns: 0 },
@@ -862,4 +864,6 @@
     </script>
 </body>
 </html>
+
+
 

@@ -16,6 +16,7 @@
         }
     </script>
     <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
 <body>
     <div class="dashboard-container">
@@ -118,7 +119,8 @@
         App.requireAuth();
 
         const currentUser = App.getUser();
-        const storageKey = 'employeesList_' + currentUser;
+        const userId = App.getUserId();
+        const storageKey = 'employeesList_' + userId;
         let employees = JSON.parse(localStorage.getItem(storageKey)) || [];
 
         function saveAndRender() {
@@ -262,4 +264,6 @@
     </script>
 </body>
 </html>
+
+
 

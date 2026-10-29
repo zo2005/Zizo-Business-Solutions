@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول - Zizo Solutions</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="stylesheet" href="app.css">
 </head>
 <body class="auth-page">
@@ -36,7 +37,7 @@
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
     <script>
-        document.getElementById('authLogoIcon').innerHTML = App.icon('factory', 26);
+        document.getElementById('authLogoIcon').innerHTML = '<span>Z</span>';
         document.getElementById('loginBtn').innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
 
         // مسح أي جلسة قديمة محفوظة في localStorage فور فتح صفحة الدخول
@@ -71,8 +72,14 @@
             if ((user === 'Zizo2312005' || user === 'admin') && (pass === adminSavedPass || pass === '200522004')) {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', 'admin');
+                sessionStorage.setItem('currentUserId', 'admin');
                 localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', 'admin');
+                localStorage.setItem('currentUserId', 'admin');
+
+                // ترحيل بيانات الأدمين (لو كانت مخزنة باسم مختلف)
+                await App.migrateUserData(user, 'admin');
+
                 const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
                 sessionStorage.removeItem('redirectAfterLogin');
                 window.location.href = target;
@@ -105,10 +112,28 @@
                     alert("الحساب في انتظار موافقة الإدارة.");
                     return;
                 }
+
+                // توليد uid لو المستخدم القديم مش عنده (ترحيل تلقائي)
+                if (!foundUser.uid) {
+                    foundUser.uid = 'uid_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+                    // حفظ uid الجديد في قائمة المستخدمين
+                    if (typeof FirebaseDB !== 'undefined') {
+                        FirebaseDB.save('systemUsers', usersList);
+                    } else {
+                        localStorage.setItem('systemUsers', JSON.stringify(usersList));
+                    }
+                }
+
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', foundUser.username);
+                sessionStorage.setItem('currentUserId', foundUser.uid);
                 localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', foundUser.username);
+                localStorage.setItem('currentUserId', foundUser.uid);
+
+                // ترحيل بيانات المستخدم من المفاتيح القديمة (بالاسم) إلى الجديدة (بالـ UID)
+                await App.migrateUserData(foundUser.username, foundUser.uid);
+
                 const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
                 sessionStorage.removeItem('redirectAfterLogin');
                 window.location.href = target;

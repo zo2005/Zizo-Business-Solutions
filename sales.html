@@ -16,6 +16,7 @@
         }
     </script>
     <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
 <body>
     <div class="dashboard-container">
@@ -98,8 +99,9 @@
         App.requireAuth();
 
         const currentUser = App.getUser();
-        const storageKey = 'salesList_' + currentUser;
-        const customItemsStorageKey = 'customSalesItems_' + currentUser;
+        const userId = App.getUserId();
+        const storageKey = 'salesList_' + userId;
+        const customItemsStorageKey = 'customSalesItems_' + userId;
 
         let salesData = JSON.parse(localStorage.getItem(storageKey)) || [];
         let customItems = JSON.parse(localStorage.getItem(customItemsStorageKey)) || ['تيشيرت', 'شورت', 'بنطلون', 'أكياس', 'أستك'];
@@ -434,4 +436,6 @@
     </script>
 </body>
 </html>
+
+
 

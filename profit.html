@@ -16,6 +16,7 @@
         }
     </script>
     <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
 </head>
 <body>
     <div class="dashboard-container">
@@ -117,16 +118,17 @@
         App.requireAuth();
 
         const currentUser = App.getUser();
-        const storageKey = 'profitList_' + currentUser;
+        const userId = App.getUserId();
+        const storageKey = 'profitList_' + userId;
         let profitData = JSON.parse(localStorage.getItem(storageKey)) || [];
 
         function autoFillSystemData() {
-            const salesKey = 'salesList_' + currentUser;
+            const salesKey = 'salesList_' + userId;
             const salesData = JSON.parse(localStorage.getItem(salesKey)) || [];
             let totalSales = salesData.reduce((sum, s) => sum + (parseFloat(s.grandTotalPrice) || 0), 0);
 
             let totalPurchaseCost = 0;
-            const generalInv = JSON.parse(localStorage.getItem('inventoryGeneral_' + currentUser)) || [];
+            const generalInv = JSON.parse(localStorage.getItem('inventoryGeneral_' + userId)) || [];
             generalInv.forEach(i => {
                 const prc = parseFloat(i.price) || 0;
                 if (i.stocks) {
@@ -138,17 +140,17 @@
                 }
             });
 
-            const singerInv = JSON.parse(localStorage.getItem('inventorySinger_' + currentUser)) || [];
+            const singerInv = JSON.parse(localStorage.getItem('inventorySinger_' + userId)) || [];
             singerInv.forEach(i => {
                 totalPurchaseCost += ((i.currentStock || 0) + (parseFloat(i.purchase) || 0)) * (parseFloat(i.price) || 0);
             });
 
-            const overlockInv = JSON.parse(localStorage.getItem('inventoryOverlock_' + currentUser)) || [];
+            const overlockInv = JSON.parse(localStorage.getItem('inventoryOverlock_' + userId)) || [];
             overlockInv.forEach(i => {
                 totalPurchaseCost += ((i.currentStock || 0) + (parseFloat(i.purchase) || 0)) * (parseFloat(i.price) || 0);
             });
 
-            const salariesKey = 'salariesList_' + currentUser;
+            const salariesKey = 'salariesList_' + userId;
             const salariesData = JSON.parse(localStorage.getItem(salariesKey)) || [];
             let totalSalaries = salariesData.reduce((sum, sal) => sum + (parseFloat(sal.netDue) || 0), 0);
 
@@ -252,4 +254,6 @@
     </script>
 </body>
 </html>
+
+
 

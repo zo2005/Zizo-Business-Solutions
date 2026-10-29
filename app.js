@@ -38,6 +38,99 @@ const App = {
         return sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || 'default_user';
     },
 
+    /**
+     * الحصول على User ID الثابت للمستخدم الحالي
+     * يستخدم في تخزين البيانات بدل اسم المستخدم عشان لو غيّر اسمه أو كلمة المرور الداتا تفضل محفوظة
+     */
+    getUserId() {
+        return sessionStorage.getItem('currentUserId') || localStorage.getItem('currentUserId') || this.getUser();
+    },
+
+    /**
+     * قائمة كل مفاتيح التخزين اللي بتتربط بالمستخدم
+     * بتستخدم في الترحيل التلقائي
+     */
+    _userDataKeys: [
+        'salesList_',
+        'customSalesItems_',
+        'employeesList_',
+        'salariesList_',
+        'profitList_',
+        'inventoryGeneral_',
+        'inventorySinger_',
+        'inventoryOverlock_',
+        'inventoryHistory_'
+    ],
+
+    /**
+     * ترحيل تلقائي لبيانات المستخدم من المفاتيح القديمة (بالاسم) إلى المفاتيح الجديدة (بالـ uid)
+     * بيشتغل مرة واحدة بس لكل مستخدم بعد أول تسجيل دخول بعد التحديث
+     * لا يحذف البيانات القديمة (احتياطي)
+     */
+    async migrateUserData(username, uid) {
+        // لو الـ uid هو نفسه الاسم (الأدمين مثلاً)، مش محتاج ترحيل
+        if (uid === username) return;
+
+        // لو الترحيل اتعمل قبل كده لنفس الـ uid، متعملوش تاني
+        const migrationFlag = 'dataMigrated_' + uid;
+        if (localStorage.getItem(migrationFlag) === 'done') return;
+
+        console.log(`🔄 بدء ترحيل بيانات المستخدم [${username}] إلى ID [${uid}]...`);
+        let migratedCount = 0;
+
+        for (const prefix of this._userDataKeys) {
+            const oldKey = prefix + username;
+            const newKey = prefix + uid;
+
+            // 1. ترحيل من localStorage
+            try {
+                const localData = localStorage.getItem(oldKey);
+                if (localData !== null) {
+                    // لو المفتاح الجديد فاضي بس، ننقل البيانات — لو فيه بيانات بالفعل متشلش
+                    if (localStorage.getItem(newKey) === null) {
+                        localStorage.setItem(newKey, localData);
+                        migratedCount++;
+                        console.log(`  ✅ تم ترحيل [${oldKey}] → [${newKey}] (محلي)`);
+                    }
+                }
+            } catch (e) {
+                console.warn(`  ⚠️ خطأ في ترحيل [${oldKey}] محلياً:`, e);
+            }
+
+            // 2. ترحيل من Firebase (السحابة)
+            if (typeof FirebaseDB !== 'undefined' && FirebaseDB.isReady) {
+                try {
+                    const cloudData = await FirebaseDB.get(oldKey);
+                    if (cloudData !== null && cloudData !== undefined) {
+                        // نشوف لو المفتاح الجديد فاضي في السحابة
+                        const existingNew = await FirebaseDB.get(newKey);
+                        if (existingNew === null || existingNew === undefined) {
+                            await FirebaseDB.save(newKey, cloudData);
+                            console.log(`  ☁️ تم ترحيل [${oldKey}] → [${newKey}] (سحابي)`);
+                            migratedCount++;
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`  ⚠️ خطأ في ترحيل [${oldKey}] سحابياً:`, e);
+                }
+            }
+        }
+
+        // تسجيل إن الترحيل تم بنجاح
+        localStorage.setItem(migrationFlag, 'done');
+        if (typeof FirebaseDB !== 'undefined' && FirebaseDB.isReady) {
+            try {
+                await FirebaseDB.save(migrationFlag, { status: 'done', migratedAt: new Date().toISOString(), fromUser: username, toUid: uid, count: migratedCount });
+            } catch(e) {}
+        }
+
+        if (migratedCount > 0) {
+            console.log(`🎉 تم ترحيل ${migratedCount} مفتاح بيانات بنجاح للمستخدم [${username}] → [${uid}]`);
+        } else {
+            console.log(`ℹ️ لا توجد بيانات قديمة تحتاج ترحيل للمستخدم [${username}]`);
+        }
+    },
+
     isAdmin() {
         const u = this.getUser();
         return u === 'admin' || u === 'Zizo2312005';
@@ -64,6 +157,7 @@ const App = {
         sessionStorage.clear();
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('currentUserId');
         window.location.replace('index.html');
     },
 
@@ -88,7 +182,7 @@ const App = {
             <div class="sidebar-header">
                 <div class="sidebar-brand">
                     <div class="sidebar-brand-icon">
-                        ${this.icon('factory', 22)}
+                        <span>Z</span>
                     </div>
                     <div class="sidebar-brand-text">
                         <h2>Zizo Solutions</h2>
@@ -112,11 +206,20 @@ const App = {
                 ` : ''}
             </nav>
             <div class="sidebar-footer">
-                <div class="user-badge">
-                    <div class="user-badge-avatar">${this.icon('user', 14)}</div>
-                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <div style="font-size: 10.5px; opacity: 0.8;">${isAdmin ? 'مدير النظام' : 'مستخدم'}</div>
+                <div class="user-badge" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                        <div class="user-badge-avatar">${this.icon('user', 14)}</div>
+                        <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <div style="font-weight: 700; font-size: 13px; color: #fff;">${user}</div>
+                            <div style="font-size: 10.5px; opacity: 0.8; color: var(--text-muted);">${isAdmin ? 'مدير النظام' : 'مستخدم'}</div>
+                        </div>
                     </div>
+                    ${!isAdmin ? `
+                    <div style="width: 100%; margin-top: 4px; padding: 4px 8px; background: rgba(0,0,0,0.25); border-radius: 4px; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                        <span style="font-size: 10px; color: var(--text-muted);">ID الحساب:</span>
+                        <code style="font-size: 10px; color: #34d399; font-weight: 600; font-family: monospace; user-select: all;" title="معرّف الحساب الثابت">${this.getUserId()}</code>
+                    </div>
+                    ` : ''}
                 </div>
                 <div style="display: flex; gap: 8px; margin-top: 10px;">
                     <a href="#" onclick="App.openChangePasswordModal(); return false;" class="logout-link" style="flex: 1; justify-content: center; background: rgba(255,255,255,0.06); padding: 7px; border-radius: 6px; color: #93c5fd; font-size: 11px;">
@@ -190,6 +293,13 @@ const App = {
                     </div>
                     <form id="changePasswordForm" onsubmit="App.submitChangePassword(event)">
                         <div class="app-modal-body">
+                            ${!isAdmin ? `
+                            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+                                <div style="font-size: 11px; color: #34d399; font-weight: 600; margin-bottom: 3px;">معرّف الحساب الثابت (ID)</div>
+                                <code style="font-size: 12px; color: #fff; font-family: monospace; user-select: all;">${this.getUserId()}</code>
+                                <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">جميع بياناتك ومبيعاتك مربوطة بهذا الـ ID وستبقى محفوظة حتى لو قمت بتغيير اسمك أو كلمة مرورك.</div>
+                            </div>
+                            ` : ''}
                             <div class="form-group" style="margin-bottom: 14px; ${isAdmin ? 'display:none;' : ''}">
                                 <label for="modalNewUsername">${this.icon('user', 14)} اسم المستخدم الجديد (اختياري)</label>
                                 <input type="text" id="modalNewUsername" placeholder="اكتب اسم المستخدم الجديد (اتركه فارغاً لعدم التغيير)" autocomplete="username" pattern="[A-Za-z0-9_.-]+" title="يرجى كتابة اسم المستخدم باللغة الإنجليزية والأرقام فقط">
@@ -326,7 +436,8 @@ const App = {
                     usersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
                 }
 
-                const userIndex = usersList.findIndex(u => u.username === currentUser);
+                const currentUid = this.getUserId();
+                const userIndex = usersList.findIndex(u => u.uid === currentUid || u.username === currentUser);
                 if (userIndex === -1) {
                     alert("تعذر العثور على بيانات المستخدم.");
                     saveBtn.disabled = false;
@@ -366,7 +477,7 @@ const App = {
 
                 let successMsg = '';
                 if (newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) {
-                    successMsg += `تم تغيير اسم المستخدم إلى: ${newUsername}`;
+                    successMsg += `تم تغيير اسم المستخدم إلى: ${newUsername}\nجميع بياناتك محفوظة بأمان ومرتبطة بحسابك الثابت (${currentUid}).`;
                 }
                 if (newPass) {
                     successMsg += (successMsg ? '\n' : '') + 'تم تغيير كلمة المرور بنجاح!';
