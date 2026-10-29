@@ -91,7 +91,8 @@ const App = {
                         ${this.icon('factory', 22)}
                     </div>
                     <div class="sidebar-brand-text">
-                        <h2>Zizo Solutions <span style="font-size: 13px; font-weight: 400; opacity: 0.85; color: #93c5fd;">| ${user}</span></h2>
+                        <h2>Zizo Solutions</h2>
+                        <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-top: 2px;">${user}</div>
                         <p>إدارة المصنع الذكية</p>
                     </div>
                 </div>
