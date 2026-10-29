@@ -1,8 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <title>إدارة المستخدمين والصلاحيات - Zizo Solutions</title>
     <script>
         localStorage.removeItem('isLoggedIn');
@@ -54,6 +56,7 @@
                             <thead>
                                 <tr>
                                     <th>اسم المستخدم</th>
+                                    <th>اسم الشركة</th>
                                     <th>معرّف الحساب (ID)</th>
                                     <th>حالة الحساب</th>
                                     <th>إجراءات الاعتماد</th>
@@ -122,8 +125,9 @@
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><strong>${user.username}</strong></td>
-                    <td><code style="font-size: 10.5px; background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; user-select: all;">${user.uid || 'بدون ID (قديم)'}</code></td>
+                    <td><strong>${App.escapeHtml(user.username)}</strong></td>
+                    <td><span style="color: #93c5fd; font-weight: 600;">${App.escapeHtml(user.companyName) || '<span style="color:var(--text-muted); font-size:11px;">غير محدد</span>'}</span></td>
+                    <td><code style="font-size: 10.5px; background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; user-select: all;">${App.escapeHtml(user.uid || 'بدون ID')}</code></td>
                     <td>${statusBadge}</td>
                     <td>
                         <button class="btn btn-sm ${isApproved ? 'btn-warning' : 'btn-info'}" onclick="toggleApprove(${index})">
@@ -201,6 +205,7 @@
     </script>
 </body>
 </html>
+
 
 
 

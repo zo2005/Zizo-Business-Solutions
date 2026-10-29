@@ -34,8 +34,22 @@ const App = {
         return `<svg class="app-icon ${className}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svgContent}</svg>`;
     },
 
+    escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     getUser() {
         return sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || 'default_user';
+    },
+
+    getCompany() {
+        return sessionStorage.getItem('currentCompany') || localStorage.getItem('currentCompany') || '';
     },
 
     /**
@@ -158,6 +172,7 @@ const App = {
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('currentUser');
         localStorage.removeItem('currentUserId');
+        localStorage.removeItem('currentCompany');
         window.location.replace('index.html');
     },
 
@@ -167,7 +182,8 @@ const App = {
     },
 
     initLayout(activeKey = '') {
-        const user = this.getUser();
+        const user = this.escapeHtml(this.getUser());
+        const company = this.escapeHtml(this.getCompany());
         const isAdmin = this.isAdmin();
 
         const navLinks = [
@@ -178,6 +194,8 @@ const App = {
             { key: 'profit', href: 'profit.html', icon: 'chart', text: 'حساب الأرباح' }
         ];
 
+        const brandTitle = company ? `Zizo Solutions - ${company}` : `Zizo Solutions`;
+
         const sidebarHTML = `
             <div class="sidebar-header">
                 <div class="sidebar-brand">
@@ -185,9 +203,9 @@ const App = {
                         <span>Z</span>
                     </div>
                     <div class="sidebar-brand-text">
-                        <h2>Zizo Solutions</h2>
-                        <div style="font-size: 15px; font-weight: 700; color: #93c5fd; margin-top: 2px;">${user}</div>
-                        <p>إدارة المصنع الذكية</p>
+                        <h2 style="line-height: 1.3;">${brandTitle}</h2>
+                        <div style="font-size: 14px; font-weight: 700; color: #93c5fd; margin-top: 2px;">${user}</div>
+                        <p>${company ? 'شركة: ' + company : 'إدارة المصنع الذكية'}</p>
                     </div>
                 </div>
             </div>
@@ -305,6 +323,11 @@ const App = {
                                 <input type="text" id="modalNewUsername" placeholder="اكتب اسم المستخدم الجديد (اتركه فارغاً لعدم التغيير)" autocomplete="username" pattern="[A-Za-z0-9_.-]+" title="يرجى كتابة اسم المستخدم باللغة الإنجليزية والأرقام فقط">
                                 <small style="color: var(--text-muted); font-size: 11px;">مسموح بالحروف الإنجليزية والأرقام والرموز (_ . -) بدون مسافات</small>
                             </div>
+                            <div class="form-group" style="margin-bottom: 14px; ${isAdmin ? 'display:none;' : ''}">
+                                <label for="modalNewCompany">${this.icon('factory', 14)} اسم الشركة / المصنع</label>
+                                <input type="text" id="modalNewCompany" placeholder="مثال: مصنع النور للملابس" maxlength="100">
+                                <small style="color: var(--text-muted); font-size: 11px;">سيظهر اسم شركتك بجانب Zizo Solutions في القائمة الرئيسية</small>
+                            </div>
                             <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 14px; ${isAdmin ? 'display:none;' : ''}">
                             <div class="form-group" style="margin-bottom: 14px;">
                                 <label for="modalCurrentPass">كلمة المرور الحالية</label>
@@ -330,13 +353,20 @@ const App = {
             `;
             document.body.appendChild(modal);
         }
-        // تحديث الـ placeholder بتاع اسم المستخدم ليظهر الاسم الحالي
+        // تحديث الـ placeholder والبيانات الحالية
         const usernameInput = document.getElementById('modalNewUsername');
         if (usernameInput) {
             usernameInput.placeholder = `الاسم الحالي: ${currentUser} (اتركه فارغاً لعدم التغيير)`;
             usernameInput.value = '';
         }
+        const companyInput = document.getElementById('modalNewCompany');
+        if (companyInput) {
+            companyInput.value = this.getCompany() || '';
+        }
         document.getElementById('changePasswordForm').reset();
+        if (companyInput) {
+            companyInput.value = this.getCompany() || '';
+        }
         const msgElem = document.getElementById('modalPassMsg');
         if (msgElem) msgElem.style.display = 'none';
         modal.style.display = 'flex';
@@ -353,6 +383,7 @@ const App = {
         const newPass = document.getElementById('modalNewPass').value.trim();
         const confirmPass = document.getElementById('modalConfirmPass').value.trim();
         const newUsername = document.getElementById('modalNewUsername') ? document.getElementById('modalNewUsername').value.trim() : '';
+        const newCompany = document.getElementById('modalNewCompany') ? document.getElementById('modalNewCompany').value.trim() : '';
         const saveBtn = document.getElementById('savePassBtn');
         const msgElem = document.getElementById('modalPassMsg');
 
@@ -469,6 +500,15 @@ const App = {
                     usersList[userIndex].password = newPass;
                 }
 
+                // تحديث اسم الشركة
+                let companyChanged = false;
+                if (newCompany !== undefined && newCompany !== usersList[userIndex].companyName) {
+                    usersList[userIndex].companyName = newCompany;
+                    sessionStorage.setItem('currentCompany', newCompany);
+                    localStorage.setItem('currentCompany', newCompany);
+                    companyChanged = true;
+                }
+
                 if (typeof FirebaseDB !== 'undefined') {
                     await FirebaseDB.save('systemUsers', usersList);
                 } else {
@@ -479,14 +519,17 @@ const App = {
                 if (newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) {
                     successMsg += `تم تغيير اسم المستخدم إلى: ${newUsername}\nجميع بياناتك محفوظة بأمان ومرتبطة بحسابك الثابت (${currentUid}).`;
                 }
+                if (companyChanged) {
+                    successMsg += (successMsg ? '\n' : '') + `تم تحديث اسم الشركة: ${newCompany || 'تم الإلغاء'}`;
+                }
                 if (newPass) {
                     successMsg += (successMsg ? '\n' : '') + 'تم تغيير كلمة المرور بنجاح!';
                 }
                 alert(successMsg || "تم حفظ التعديلات بنجاح!");
                 this.closeChangePasswordModal();
 
-                // تحديث عرض الاسم في الـ sidebar
-                if (newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) {
+                // تحديث عرض الاسم والشركة في الـ sidebar
+                if ((newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) || companyChanged) {
                     const activeKey = document.querySelector('.sidebar-nav a.active');
                     const key = activeKey ? activeKey.getAttribute('href').replace('.html', '') : '';
                     this.initLayout(key);

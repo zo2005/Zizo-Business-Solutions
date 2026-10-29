@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <title>تسجيل الدخول - Zizo Solutions</title>
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -80,9 +82,11 @@
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', 'admin');
                 sessionStorage.setItem('currentUserId', 'admin');
+                sessionStorage.setItem('currentCompany', '');
                 localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', 'admin');
                 localStorage.setItem('currentUserId', 'admin');
+                localStorage.setItem('currentCompany', '');
 
                 // ترحيل بيانات الأدمين (لو كانت مخزنة باسم مختلف)
                 await App.migrateUserData(user, 'admin');
@@ -134,9 +138,11 @@
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', foundUser.username);
                 sessionStorage.setItem('currentUserId', foundUser.uid);
+                sessionStorage.setItem('currentCompany', foundUser.companyName || '');
                 localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', foundUser.username);
                 localStorage.setItem('currentUserId', foundUser.uid);
+                localStorage.setItem('currentCompany', foundUser.companyName || '');
 
                 // ترحيل بيانات المستخدم من المفاتيح القديمة (بالاسم) إلى الجديدة (بالـ UID)
                 await App.migrateUserData(foundUser.username, foundUser.uid);
@@ -152,4 +158,5 @@
     </script>
 </body>
 </html>
+
 
