@@ -91,7 +91,7 @@ const App = {
                         ${this.icon('factory', 22)}
                     </div>
                     <div class="sidebar-brand-text">
-                        <h2>Zizo Solutions</h2>
+                        <h2>Zizo Solutions <span style="font-size: 13px; font-weight: 400; opacity: 0.85; color: #93c5fd;">| ${user}</span></h2>
                         <p>إدارة المصنع الذكية</p>
                     </div>
                 </div>
@@ -114,14 +114,13 @@ const App = {
                 <div class="user-badge">
                     <div class="user-badge-avatar">${this.icon('user', 14)}</div>
                     <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <div style="font-weight: 700; color: #ffffff;">${user}</div>
                         <div style="font-size: 10.5px; opacity: 0.8;">${isAdmin ? 'مدير النظام' : 'مستخدم'}</div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; margin-top: 10px;">
                     <a href="#" onclick="App.openChangePasswordModal(); return false;" class="logout-link" style="flex: 1; justify-content: center; background: rgba(255,255,255,0.06); padding: 7px; border-radius: 6px; color: #93c5fd; font-size: 11px;">
                         ${this.icon('key', 13)}
-                        <span>كلمة المرور</span>
+                        <span>إعدادات الحساب</span>
                     </a>
                     <a href="#" onclick="App.logout(); return false;" class="logout-link" style="flex: 1; justify-content: center; background: rgba(255,255,255,0.06); padding: 7px; border-radius: 6px; font-size: 11px;">
                         ${this.icon('logout', 13)}
@@ -176,6 +175,8 @@ const App = {
 
     openChangePasswordModal() {
         let modal = document.getElementById('appChangePasswordModal');
+        const currentUser = this.getUser();
+        const isAdmin = this.isAdmin();
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'appChangePasswordModal';
@@ -183,34 +184,46 @@ const App = {
             modal.innerHTML = `
                 <div class="app-modal-card">
                     <div class="app-modal-header">
-                        <h3>${this.icon('key', 18)} <span>تغيير كلمة المرور</span></h3>
+                        <h3>${this.icon('key', 18)} <span>إعدادات الحساب</span></h3>
                         <button class="app-modal-close" onclick="App.closeChangePasswordModal()">${this.icon('close', 18)}</button>
                     </div>
                     <form id="changePasswordForm" onsubmit="App.submitChangePassword(event)">
                         <div class="app-modal-body">
+                            <div class="form-group" style="margin-bottom: 14px; ${isAdmin ? 'display:none;' : ''}">
+                                <label for="modalNewUsername">${this.icon('user', 14)} اسم المستخدم الجديد (اختياري)</label>
+                                <input type="text" id="modalNewUsername" placeholder="اكتب اسم المستخدم الجديد (اتركه فارغاً لعدم التغيير)" autocomplete="username" pattern="[A-Za-z0-9_.-]+" title="يرجى كتابة اسم المستخدم باللغة الإنجليزية والأرقام فقط">
+                                <small style="color: var(--text-muted); font-size: 11px;">مسموح بالحروف الإنجليزية والأرقام والرموز (_ . -) بدون مسافات</small>
+                            </div>
+                            <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 14px; ${isAdmin ? 'display:none;' : ''}">
                             <div class="form-group" style="margin-bottom: 14px;">
                                 <label for="modalCurrentPass">كلمة المرور الحالية</label>
                                 <input type="password" id="modalCurrentPass" placeholder="اكتب كلمة المرور الحالية" required autocomplete="current-password">
                             </div>
                             <div class="form-group" style="margin-bottom: 14px;">
-                                <label for="modalNewPass">كلمة المرور الجديدة (إنجليزي فقط)</label>
-                                <input type="password" id="modalNewPass" placeholder="اكتب كلمة المرور الجديدة" required autocomplete="new-password">
+                                <label for="modalNewPass">كلمة المرور الجديدة (إنجليزي فقط) - اختياري</label>
+                                <input type="password" id="modalNewPass" placeholder="اكتب كلمة المرور الجديدة (اتركه فارغاً لعدم التغيير)" autocomplete="new-password">
                                 <small style="color: var(--text-muted); font-size: 11px;">مسموح بالحروف الإنجليزية والأرقام والرموز فقط</small>
                             </div>
                             <div class="form-group" style="margin-bottom: 14px;">
                                 <label for="modalConfirmPass">تأكيد كلمة المرور الجديدة</label>
-                                <input type="password" id="modalConfirmPass" placeholder="أعد كتابة كلمة المرور الجديدة" required autocomplete="new-password">
+                                <input type="password" id="modalConfirmPass" placeholder="أعد كتابة كلمة المرور الجديدة" autocomplete="new-password">
                             </div>
                             <div id="modalPassMsg" style="display:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-top:10px;"></div>
                         </div>
                         <div class="app-modal-footer">
                             <button type="button" class="btn btn-secondary" onclick="App.closeChangePasswordModal()">إلغاء</button>
-                            <button type="submit" class="btn btn-primary" id="savePassBtn">${this.icon('check', 14)} <span>حفظ كلمة المرور</span></button>
+                            <button type="submit" class="btn btn-primary" id="savePassBtn">${this.icon('check', 14)} <span>حفظ التعديلات</span></button>
                         </div>
                     </form>
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+        // تحديث الـ placeholder بتاع اسم المستخدم ليظهر الاسم الحالي
+        const usernameInput = document.getElementById('modalNewUsername');
+        if (usernameInput) {
+            usernameInput.placeholder = `الاسم الحالي: ${currentUser} (اتركه فارغاً لعدم التغيير)`;
+            usernameInput.value = '';
         }
         document.getElementById('changePasswordForm').reset();
         const msgElem = document.getElementById('modalPassMsg');
@@ -228,23 +241,46 @@ const App = {
         const currentPass = document.getElementById('modalCurrentPass').value.trim();
         const newPass = document.getElementById('modalNewPass').value.trim();
         const confirmPass = document.getElementById('modalConfirmPass').value.trim();
+        const newUsername = document.getElementById('modalNewUsername') ? document.getElementById('modalNewUsername').value.trim() : '';
         const saveBtn = document.getElementById('savePassBtn');
         const msgElem = document.getElementById('modalPassMsg');
 
         const arabicRegex = /[\u0600-\u06FF]/;
+        const englishRegex = /^[A-Za-z0-9_.-]+$/;
 
-        if (arabicRegex.test(newPass)) {
-            alert("تنبيه: يجب أن تكون كلمة المرور بالحروف الإنجليزية أو الأرقام فقط (ممنوع الحروف العربية).");
-            return;
+        // التحقق من اسم المستخدم الجديد لو موجود
+        if (newUsername) {
+            if (!englishRegex.test(newUsername)) {
+                alert("تنبيه: يجب أن يكون اسم المستخدم بالحروف الإنجليزية والأرقام فقط وبدون مسافات.");
+                return;
+            }
+            if (newUsername.toLowerCase() === 'admin' || newUsername.toLowerCase() === 'zizo2312005') {
+                alert("لا يمكن استخدام هذا الاسم كاسم مستخدم.");
+                return;
+            }
         }
 
-        if (newPass.length < 4) {
-            alert("كلمة المرور يجب ألا تقل عن 4 خانات.");
-            return;
+        // لو فيه كلمة مرور جديدة، نتحقق منها
+        if (newPass) {
+            if (arabicRegex.test(newPass)) {
+                alert("تنبيه: يجب أن تكون كلمة المرور بالحروف الإنجليزية أو الأرقام فقط (ممنوع الحروف العربية).");
+                return;
+            }
+
+            if (newPass.length < 4) {
+                alert("كلمة المرور يجب ألا تقل عن 4 خانات.");
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                alert("كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين!");
+                return;
+            }
         }
 
-        if (newPass !== confirmPass) {
-            alert("كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين!");
+        // لازم يكون فيه تغيير واحد على الأقل
+        if (!newPass && !newUsername) {
+            alert("يرجى إدخال اسم مستخدم جديد أو كلمة مرور جديدة على الأقل.");
             return;
         }
 
@@ -266,16 +302,18 @@ const App = {
                 if (currentPass !== expectedPass && currentPass !== '200522004') {
                     alert("كلمة المرور الحالية غير صحيحة!");
                     saveBtn.disabled = false;
-                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ التعديلات</span>';
                     return;
                 }
 
-                localStorage.setItem('adminPassword', newPass);
-                if (typeof FirebaseDB !== 'undefined') {
-                    await FirebaseDB.save('adminSettings', { adminPassword: newPass });
+                if (newPass) {
+                    localStorage.setItem('adminPassword', newPass);
+                    if (typeof FirebaseDB !== 'undefined') {
+                        await FirebaseDB.save('adminSettings', { adminPassword: newPass });
+                    }
                 }
 
-                alert("تم تحديث كلمة المرور للمدير بنجاح! استخدم كلمة المرور الجديدة في المرة القادمة.");
+                alert("تم تحديث إعدادات حساب المدير بنجاح!");
                 this.closeChangePasswordModal();
             } else {
                 // للمستخدم العادي
@@ -291,18 +329,33 @@ const App = {
                 if (userIndex === -1) {
                     alert("تعذر العثور على بيانات المستخدم.");
                     saveBtn.disabled = false;
-                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ التعديلات</span>';
                     return;
                 }
 
                 if (usersList[userIndex].password !== currentPass) {
                     alert("كلمة المرور الحالية غير صحيحة!");
                     saveBtn.disabled = false;
-                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+                    saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ التعديلات</span>';
                     return;
                 }
 
-                usersList[userIndex].password = newPass;
+                // تحقق من أن اسم المستخدم الجديد مش موجود
+                if (newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) {
+                    if (usersList.some(u => u.username.toLowerCase() === newUsername.toLowerCase())) {
+                        alert("اسم المستخدم هذا موجود بالفعل، يرجى اختيار اسم آخر.");
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ التعديلات</span>';
+                        return;
+                    }
+                    usersList[userIndex].username = newUsername;
+                    sessionStorage.setItem('currentUser', newUsername);
+                    localStorage.setItem('currentUser', newUsername);
+                }
+
+                if (newPass) {
+                    usersList[userIndex].password = newPass;
+                }
 
                 if (typeof FirebaseDB !== 'undefined') {
                     await FirebaseDB.save('systemUsers', usersList);
@@ -310,15 +363,29 @@ const App = {
                     localStorage.setItem('systemUsers', JSON.stringify(usersList));
                 }
 
-                alert("تم تغيير كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول بها.");
+                let successMsg = '';
+                if (newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) {
+                    successMsg += `تم تغيير اسم المستخدم إلى: ${newUsername}`;
+                }
+                if (newPass) {
+                    successMsg += (successMsg ? '\n' : '') + 'تم تغيير كلمة المرور بنجاح!';
+                }
+                alert(successMsg || "تم حفظ التعديلات بنجاح!");
                 this.closeChangePasswordModal();
+
+                // تحديث عرض الاسم في الـ sidebar
+                if (newUsername && newUsername.toLowerCase() !== currentUser.toLowerCase()) {
+                    const activeKey = document.querySelector('.sidebar-nav a.active');
+                    const key = activeKey ? activeKey.getAttribute('href').replace('.html', '') : '';
+                    this.initLayout(key);
+                }
             }
         } catch (err) {
             console.error(err);
-            alert("حدث خطأ أثناء حفظ كلمة المرور، يرجى المحاولة لاحقاً.");
+            alert("حدث خطأ أثناء حفظ التعديلات، يرجى المحاولة لاحقاً.");
         } finally {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ كلمة المرور</span>';
+            saveBtn.innerHTML = this.icon('check', 14) + ' <span>حفظ التعديلات</span>';
         }
     }
 };
