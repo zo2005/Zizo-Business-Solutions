@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -152,15 +152,57 @@
         async function deleteUser(index) {
             const user = currentUsersList[index];
             if (!user) return;
-            if (confirm(`تحذير: هل أنت متأكد من حذف حساب (${user.username}) نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.`)) {
-                currentUsersList.splice(index, 1);
-                renderAdminUsersTable(currentUsersList);
-                if (typeof FirebaseDB !== 'undefined') {
-                    await FirebaseDB.save('systemUsers', currentUsersList);
-                } else {
-                    localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+            if (!confirm(`تحذير هام: هل أنت متأكد من حذف حساب (${user.username}) نهائياً؟\nسيتم حذف جميع سجلاته وبياناته (المبيعات، العمال، الرواتب، الأرباح، المخزن) من قاعدة بيانات Firebase لتوفير المساحة بالكامل.`)) {
+                return;
+            }
+
+            const username = user.username;
+            const uid = user.uid;
+
+            // 1. حذف جميع مستندات المستخدم وسجلاته من Firebase ومحلياً
+            const dataPrefixes = [
+                'salesList_',
+                'customSalesItems_',
+                'employeesList_',
+                'salariesList_',
+                'profitList_',
+                'inventoryGeneral_',
+                'inventorySinger_',
+                'inventoryOverlock_',
+                'inventoryHistory_'
+            ];
+
+            const keysToDelete = new Set();
+            dataPrefixes.forEach(prefix => {
+                if (uid) keysToDelete.add(prefix + uid);
+                if (username) keysToDelete.add(prefix + username);
+            });
+            if (uid) keysToDelete.add('dataMigrated_' + uid);
+
+            for (const key of keysToDelete) {
+                try {
+                    localStorage.removeItem(key);
+                } catch(e) {}
+
+                if (typeof FirebaseDB !== 'undefined' && typeof FirebaseDB.delete === 'function') {
+                    try {
+                        await FirebaseDB.delete(key);
+                    } catch(err) {
+                        console.warn(`فشل حذف المفتاح [${key}]:`, err);
+                    }
                 }
             }
+
+            // 2. إزالة المستخدم من قائمة المستخدمين وحفظ القائمة
+            currentUsersList.splice(index, 1);
+            renderAdminUsersTable(currentUsersList);
+            if (typeof FirebaseDB !== 'undefined') {
+                await FirebaseDB.save('systemUsers', currentUsersList);
+            } else {
+                localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+            }
+
+            alert(`تم حذف حساب (${username}) وحذف كامل بياناته من Firebase بنجاح!`);
         }
 
         async function toggleApprove(index) {

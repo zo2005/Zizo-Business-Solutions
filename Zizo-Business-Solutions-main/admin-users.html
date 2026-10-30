@@ -1,8 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <title>إدارة المستخدمين والصلاحيات - Zizo Solutions</title>
     <script>
         localStorage.removeItem('isLoggedIn');
@@ -20,6 +22,14 @@
         }
     </script>
     <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
 </head>
 <body>
     <div class="dashboard-container">
@@ -46,6 +56,8 @@
                             <thead>
                                 <tr>
                                     <th>اسم المستخدم</th>
+                                    <th>اسم الشركة</th>
+                                    <th>معرّف الحساب (ID)</th>
                                     <th>حالة الحساب</th>
                                     <th>إجراءات الاعتماد</th>
                                     <th>إجراءات الحظر</th>
@@ -75,8 +87,29 @@
             tbody.innerHTML = '';
 
             if (!usersList || usersList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="color: var(--text-muted); padding: 18px;">لا توجد حسابات مستخدمين مسجلة حتى الآن.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="color: var(--text-muted); padding: 18px;">لا توجد حسابات مستخدمين مسجلة حتى الآن.</td></tr>`;
                 return;
+            }
+
+            // توليد UID تلقائياً لأي حساب قديم لم يسجل دخول بعد وترحيل بياناته
+            let updated = false;
+            usersList.forEach(user => {
+                if (!user.uid) {
+                    user.uid = 'uid_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 7);
+                    updated = true;
+                    // ترحيل بياناته القديمة فوراً إلى الـ UID الجديد
+                    if (typeof App !== 'undefined' && App.migrateUserData) {
+                        App.migrateUserData(user.username, user.uid);
+                    }
+                }
+            });
+
+            if (updated) {
+                if (typeof FirebaseDB !== 'undefined') {
+                    FirebaseDB.save('systemUsers', usersList);
+                } else {
+                    localStorage.setItem('systemUsers', JSON.stringify(usersList));
+                }
             }
 
             usersList.forEach((user, index) => {
@@ -92,7 +125,9 @@
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><strong>${user.username}</strong></td>
+                    <td><strong>${App.escapeHtml(user.username)}</strong></td>
+                    <td><span style="color: #93c5fd; font-weight: 600;">${App.escapeHtml(user.companyName) || '<span style="color:var(--text-muted); font-size:11px;">غير محدد</span>'}</span></td>
+                    <td><code style="font-size: 10.5px; background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 4px; user-select: all;">${App.escapeHtml(user.uid || 'بدون ID')}</code></td>
                     <td>${statusBadge}</td>
                     <td>
                         <button class="btn btn-sm ${isApproved ? 'btn-warning' : 'btn-info'}" onclick="toggleApprove(${index})">
@@ -117,15 +152,57 @@
         async function deleteUser(index) {
             const user = currentUsersList[index];
             if (!user) return;
-            if (confirm(`تحذير: هل أنت متأكد من حذف حساب (${user.username}) نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.`)) {
-                currentUsersList.splice(index, 1);
-                renderAdminUsersTable(currentUsersList);
-                if (typeof FirebaseDB !== 'undefined') {
-                    await FirebaseDB.save('systemUsers', currentUsersList);
-                } else {
-                    localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+            if (!confirm(`تحذير هام: هل أنت متأكد من حذف حساب (${user.username}) نهائياً؟\nسيتم حذف جميع سجلاته وبياناته (المبيعات، العمال، الرواتب، الأرباح، المخزن) من قاعدة بيانات Firebase لتوفير المساحة بالكامل.`)) {
+                return;
+            }
+
+            const username = user.username;
+            const uid = user.uid;
+
+            // 1. حذف جميع مستندات المستخدم وسجلاته من Firebase ومحلياً
+            const dataPrefixes = [
+                'salesList_',
+                'customSalesItems_',
+                'employeesList_',
+                'salariesList_',
+                'profitList_',
+                'inventoryGeneral_',
+                'inventorySinger_',
+                'inventoryOverlock_',
+                'inventoryHistory_'
+            ];
+
+            const keysToDelete = new Set();
+            dataPrefixes.forEach(prefix => {
+                if (uid) keysToDelete.add(prefix + uid);
+                if (username) keysToDelete.add(prefix + username);
+            });
+            if (uid) keysToDelete.add('dataMigrated_' + uid);
+
+            for (const key of keysToDelete) {
+                try {
+                    localStorage.removeItem(key);
+                } catch(e) {}
+
+                if (typeof FirebaseDB !== 'undefined' && typeof FirebaseDB.delete === 'function') {
+                    try {
+                        await FirebaseDB.delete(key);
+                    } catch(err) {
+                        console.warn(`فشل حذف المفتاح [${key}]:`, err);
+                    }
                 }
             }
+
+            // 2. إزالة المستخدم من قائمة المستخدمين وحفظ القائمة
+            currentUsersList.splice(index, 1);
+            renderAdminUsersTable(currentUsersList);
+            if (typeof FirebaseDB !== 'undefined') {
+                await FirebaseDB.save('systemUsers', currentUsersList);
+            } else {
+                localStorage.setItem('systemUsers', JSON.stringify(currentUsersList));
+            }
+
+            alert(`تم حذف حساب (${username}) وحذف كامل بياناته من Firebase بنجاح!`);
         }
 
         async function toggleApprove(index) {
@@ -170,4 +247,8 @@
     </script>
 </body>
 </html>
+
+
+
+
 

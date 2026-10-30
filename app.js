@@ -100,12 +100,13 @@ const App = {
             try {
                 const localData = localStorage.getItem(oldKey);
                 if (localData !== null) {
-                    // لو المفتاح الجديد فاضي بس، ننقل البيانات — لو فيه بيانات بالفعل متشلش
+                    // لو المفتاح الجديد فاضي بس، ننقل البيانات
                     if (localStorage.getItem(newKey) === null) {
                         localStorage.setItem(newKey, localData);
                         migratedCount++;
-                        console.log(`  ✅ تم ترحيل [${oldKey}] → [${newKey}] (محلي)`);
                     }
+                    // مسح المفتاح القديم عشان لو اتعمل حساب جديد بنفس الاسم ميورثش البيانات
+                    localStorage.removeItem(oldKey);
                 }
             } catch (e) {
                 console.warn(`  ⚠️ خطأ في ترحيل [${oldKey}] محلياً:`, e);
@@ -120,8 +121,11 @@ const App = {
                         const existingNew = await FirebaseDB.get(newKey);
                         if (existingNew === null || existingNew === undefined) {
                             await FirebaseDB.save(newKey, cloudData);
-                            console.log(`  ☁️ تم ترحيل [${oldKey}] → [${newKey}] (سحابي)`);
                             migratedCount++;
+                        }
+                        // حذف المفتاح القديم من السحابة لتوفير المساحة وعدم توريثه
+                        if (typeof FirebaseDB.delete === 'function') {
+                            await FirebaseDB.delete(oldKey);
                         }
                     }
                 } catch (e) {

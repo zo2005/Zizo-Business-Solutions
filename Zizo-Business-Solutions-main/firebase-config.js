@@ -128,6 +128,25 @@ const FirebaseDB = {
   },
 
   /**
+   * حذف مستند كامل نهائياً سحابياً ومحلياً لتفريغ المساحة
+   */
+  async delete(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {}
+
+    if (!db) return true;
+
+    try {
+      await db.collection('app_data').doc(key).delete();
+      return true;
+    } catch (err) {
+      console.warn(`فشل حذف المستند [${key}] من السحابة:`, err);
+      return false;
+    }
+  },
+
+  /**
    * جلب بيانات مفتاح معين
    */
   async get(key, defaultValue = null) {
@@ -148,9 +167,9 @@ const FirebaseDB = {
         localStorage.setItem(key, JSON.stringify(cloudData));
         this.setStatus('online');
         return cloudData;
-      } else if (localData !== null && localData !== defaultValue) {
-        // رفع البيانات المحلية لأول مرة إلى السحابة إن لم تكن موجودة هناك
-        this.save(key, localData);
+      } else {
+        // المستند غير موجود في السحابة
+        return defaultValue;
       }
     } catch (err) {
       console.warn(`فشل جلب المفتاح [${key}] من السحابة، تم استخدام المحلي:`, err);
@@ -197,15 +216,11 @@ const FirebaseDB = {
           }
         }
       } else {
-        // المستند غير موجود في السحابة حتى الآن
-        // إذا كان لدى المستخدم بيانات محلية سابقة، نقوم بترحيلها للسحابة تلقائياً
-        const localVal = localStorage.getItem(key);
-        if (localVal) {
-          try {
-            const data = JSON.parse(localVal);
-            this.save(key, data);
-          } catch (e) {}
-        }
+        // المستند غير موجود أو تم حذفه من السحابة
+        try {
+          localStorage.removeItem(key);
+        } catch(e) {}
+        onDataUpdate(defaultValue);
       }
       isInitial = false;
     }, (error) => {
