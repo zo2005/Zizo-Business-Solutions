@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=2.2">
+    <link rel="stylesheet" href="app.css?v=2.3">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -133,15 +133,12 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.2"></script>
-    <script src="app.js?v=2.2"></script>
+    <script src="firebase-config.js?v=2.3"></script>
+    <script src="app.js?v=2.3"></script>
     <script>
         App.requireAuth();
 
-        const currentUser = App.getUser();
-        const userId = App.getUserId();
-        const storageKey = 'profitList_' + userId;
-        let profitData = JSON.parse(localStorage.getItem(storageKey)) || [];
+        let profitData = App.loadInitialData('profitList_', []);
 
         function initDefaultDates() {
             const today = new Date();
@@ -281,11 +278,7 @@
 
         function saveAndRender() {
             renderTable(profitData);
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.save(storageKey, profitData);
-            } else {
-                localStorage.setItem(storageKey, JSON.stringify(profitData));
-            }
+            App.saveData('profitList_', profitData);
         }
 
         function deleteProfit(id) {
@@ -362,14 +355,12 @@
             autoFillSystemData();
             renderTable(profitData);
 
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.subscribe(storageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        profitData = data;
-                        renderTable(profitData);
-                    }
-                });
-            }
+            App.subscribeData('profitList_', (data) => {
+                if (Array.isArray(data)) {
+                    profitData = data;
+                    renderTable(profitData);
+                }
+            }, []);
         };
     </script>
 </body>

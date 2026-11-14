@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=2.2">
+    <link rel="stylesheet" href="app.css?v=2.3">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -122,15 +122,12 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.2"></script>
-    <script src="app.js?v=2.2"></script>
+    <script src="firebase-config.js?v=2.3"></script>
+    <script src="app.js?v=2.3"></script>
     <script>
         App.requireAuth();
 
-        const currentUser = App.getUser();
-        const userId = App.getUserId();
-        const storageKey = 'employeesList_' + userId;
-        let employees = JSON.parse(localStorage.getItem(storageKey)) || [];
+        let employees = App.loadInitialData('employeesList_', []);
 
         function sortEmployees(list) {
             return [...list].sort((a, b) => {
@@ -143,11 +140,7 @@
         function saveAndRender() {
             employees = sortEmployees(employees);
             renderTable(employees);
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.save(storageKey, employees);
-            } else {
-                localStorage.setItem(storageKey, JSON.stringify(employees));
-            }
+            App.saveData('employeesList_', employees);
         }
 
         function renderTable(data) {
@@ -273,14 +266,12 @@
             document.getElementById('hireDate').value = new Date().toISOString().split('T')[0];
             renderTable(employees);
 
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.subscribe(storageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        employees = data;
-                        renderTable(employees);
-                    }
-                });
-            }
+            App.subscribeData('employeesList_', (data) => {
+                if (Array.isArray(data)) {
+                    employees = data;
+                    renderTable(employees);
+                }
+            }, []);
         };
     </script>
 </body>

@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=2.2">
+    <link rel="stylesheet" href="app.css?v=2.3">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -188,8 +188,8 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.2"></script>
-    <script src="app.js?v=2.2"></script>
+    <script src="firebase-config.js?v=2.3"></script>
+    <script src="app.js?v=2.3"></script>
     <script>
         App.requireAuth();
 
@@ -213,10 +213,10 @@
             { name: 'إبر سلسلة', sizes: ['افتراضي'], stocks: { 'افتراضي': 0 }, selectedSize: 'افتراضي', purchase: 0, price: 0, usage: 0, returns: 0 }
         ];
 
-        let generalItems = JSON.parse(localStorage.getItem(generalStorageKey)) || defaultGeneralItems;
-        let singerItems = JSON.parse(localStorage.getItem(singerStorageKey)) || [];
-        let overlockItems = JSON.parse(localStorage.getItem(overlockStorageKey)) || [];
-        let historyItems = JSON.parse(localStorage.getItem(historyStorageKey)) || [];
+        let generalItems = App.loadInitialData('inventoryGeneral_', defaultGeneralItems);
+        let singerItems = App.loadInitialData('inventorySinger_', []);
+        let overlockItems = App.loadInitialData('inventoryOverlock_', []);
+        let historyItems = App.loadInitialData('inventoryHistory_', []);
 
         let undoStack = [];
         let redoStack = [];
@@ -277,17 +277,10 @@
         }
 
         function saveDataSilent() {
-            localStorage.setItem(generalStorageKey, JSON.stringify(generalItems));
-            localStorage.setItem(singerStorageKey, JSON.stringify(singerItems));
-            localStorage.setItem(overlockStorageKey, JSON.stringify(overlockItems));
-            localStorage.setItem(historyStorageKey, JSON.stringify(historyItems));
-
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.save(generalStorageKey, generalItems);
-                FirebaseDB.save(singerStorageKey, singerItems);
-                FirebaseDB.save(overlockStorageKey, overlockItems);
-                FirebaseDB.save(historyStorageKey, historyItems);
-            }
+            App.saveData('inventoryGeneral_', generalItems);
+            App.saveData('inventorySinger_', singerItems);
+            App.saveData('inventoryOverlock_', overlockItems);
+            App.saveData('inventoryHistory_', historyItems);
         }
 
         function initInventory() {
@@ -843,32 +836,33 @@
             initInventory();
             updateUndoRedoButtons();
 
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.subscribe(generalStorageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        generalItems = data;
-                        initInventory();
-                    }
-                });
-                FirebaseDB.subscribe(singerStorageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        singerItems = data;
-                        initInventory();
-                    }
-                });
-                FirebaseDB.subscribe(overlockStorageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        overlockItems = data;
-                        initInventory();
-                    }
-                });
-                FirebaseDB.subscribe(historyStorageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        historyItems = data;
-                        renderHistoryTable();
-                    }
-                });
-            }
+            App.subscribeData('inventoryGeneral_', (data) => {
+                if (Array.isArray(data)) {
+                    generalItems = data;
+                    initInventory();
+                }
+            }, defaultGeneralItems);
+
+            App.subscribeData('inventorySinger_', (data) => {
+                if (Array.isArray(data)) {
+                    singerItems = data;
+                    initInventory();
+                }
+            }, []);
+
+            App.subscribeData('inventoryOverlock_', (data) => {
+                if (Array.isArray(data)) {
+                    overlockItems = data;
+                    initInventory();
+                }
+            }, []);
+
+            App.subscribeData('inventoryHistory_', (data) => {
+                if (Array.isArray(data)) {
+                    historyItems = data;
+                    renderHistoryTable();
+                }
+            }, []);
         };
     </script>
 </body>

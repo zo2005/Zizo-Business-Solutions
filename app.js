@@ -85,75 +85,171 @@ const App = {
     ],
 
     /**
+     * الحصول على جميع المفاتيح المحتملة (الحالية والسابقة) لميزة معينة
+     * لضمان تطابق وتزامن البيانات بدقة 100% بين اللابتوب والموبايل
+     */
+    getCandidateKeys(prefix) {
+        const primaryKey = prefix + this.getUserId();
+        const keys = [primaryKey];
+
+        if (this.isAdmin()) {
+            const adminAliases = ['admin', 'Zizo2312005', 'zizo2312005', 'zizo', 'zizo_solutions', 'uid_zizo2312005', 'uid_admin'];
+            adminAliases.forEach(alias => {
+                const k = prefix + alias;
+                if (!keys.includes(k)) keys.push(k);
+            });
+        } else {
+            const u = this.getUser();
+            if (u) {
+                const k1 = prefix + u;
+                const k2 = prefix + u.toLowerCase().trim();
+                const k3 = prefix + 'uid_' + u.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                [k1, k2, k3].forEach(k => {
+                    if (!keys.includes(k)) keys.push(k);
+                });
+            }
+        }
+        return keys;
+    },
+
+    /**
+     * قراءة البيانات المبدئية محلياً بفحص كل المفاتيح المحتملة (الحالية والسابقة)
+     */
+    loadInitialData(prefix, defaultValue = []) {
+        const candidateKeys = this.getCandidateKeys(prefix);
+        for (const k of candidateKeys) {
+            try {
+                const raw = localStorage.getItem(k);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) ? parsed.length > 0 : (parsed !== null && parsed !== undefined)) {
+                        return parsed;
+                    }
+                }
+            } catch (e) {}
+        }
+        return defaultValue;
+    },
+
+    /**
+     * اشتراك ذكي سحابي يبحث في كل المفاتيح المحتملة سحابياً
+     * إذا لم يجد بيانات في المفتاح الأساسي، يفحص المفاتيح السابقة تلقائياً وينقلها للمفتاح الأساسي
+     */
+    subscribeData(prefix, onDataUpdate, defaultValue = []) {
+        const candidateKeys = this.getCandidateKeys(prefix);
+        const primaryKey = candidateKeys[0];
+
+        // تطبيق البيانات المبدئية فوراً
+        const initial = this.loadInitialData(prefix, defaultValue);
+        try {
+            onDataUpdate(initial);
+        } catch (e) {}
+
+        if (typeof FirebaseDB === 'undefined' || !FirebaseDB) {
+            return () => {};
+        }
+
+        return FirebaseDB.subscribe(primaryKey, async (cloudData) => {
+            if (Array.isArray(cloudData) ? cloudData.length > 0 : (cloudData !== null && cloudData !== undefined)) {
+                onDataUpdate(cloudData);
+                return;
+            }
+
+            // إذا كان المفتاح الأساسي فارغاً في السحابة، نبحث في بقية المفاتيح القديمة
+            for (let i = 1; i < candidateKeys.length; i++) {
+                const altKey = candidateKeys[i];
+                try {
+                    const altData = await FirebaseDB.get(altKey);
+                    if (Array.isArray(altData) ? altData.length > 0 : (altData !== null && altData !== undefined)) {
+                        console.log(`🔄 تم استرجاع بيانات سابقة من [${altKey}] وتوحيدها على [${primaryKey}]`);
+                        onDataUpdate(altData);
+                        // مزامنة وحفظ في المفتاح الأساسي
+                        FirebaseDB.save(primaryKey, altData);
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            // لو كل المفاتيح فارغة
+            onDataUpdate(cloudData !== null && cloudData !== undefined ? cloudData : defaultValue);
+        });
+    },
+
+    /**
+     * حفظ ذكي سحابي ومحلي
+     * يحفظ في المفتاح الأساسي، وللأدمن يحفظ نسخة احتياطية في المفتاح القديم أيضاً لضمان قراءة الموبايل القديم فورياً
+     */
+    saveData(prefix, data) {
+        const candidateKeys = this.getCandidateKeys(prefix);
+        const primaryKey = candidateKeys[0];
+
+        if (typeof FirebaseDB !== 'undefined' && FirebaseDB) {
+            FirebaseDB.save(primaryKey, data);
+            if (this.isAdmin()) {
+                // حفظ نسخة على المفتاح القديم حتى لو فتح المستخدم من تليفون قديم بدون ريفرش
+                FirebaseDB.save(prefix + 'Zizo2312005', data);
+            }
+        } else {
+            try {
+                localStorage.setItem(primaryKey, JSON.stringify(data));
+            } catch (e) {}
+        }
+    },
+
+    /**
      * ترحيل تلقائي لبيانات المستخدم من المفاتيح القديمة (بالاسم) إلى المفاتيح الجديدة (بالـ uid)
      * بيشتغل مرة واحدة بس لكل مستخدم بعد أول تسجيل دخول بعد التحديث
-     * لا يحذف البيانات القديمة (احتياطي)
      */
     async migrateUserData(username, uid) {
-        // لو الـ uid هو نفسه الاسم (الأدمين مثلاً)، مش محتاج ترحيل
-        if (uid === username) return;
-
-        // لو الترحيل اتعمل قبل كده لنفس الـ uid، متعملوش تاني
-        const migrationFlag = 'dataMigrated_' + uid;
+        const migrationFlag = 'dataMigrated_' + uid + '_' + (username || '');
         if (localStorage.getItem(migrationFlag) === 'done') return;
 
-        console.log(`🔄 بدء ترحيل بيانات المستخدم [${username}] إلى ID [${uid}]...`);
+        console.log(`🔄 بدء ترحيل ومزامنة بيانات المستخدم [${username}] إلى ID [${uid}]...`);
         let migratedCount = 0;
 
+        // قائمة المفاتيح القديمة المحتملة
+        const oldAliases = [username];
+        if (this.isAdmin()) {
+            oldAliases.push('Zizo2312005', 'zizo2312005', 'zizo', 'zizo_solutions', 'uid_zizo2312005');
+        }
+
         for (const prefix of this._userDataKeys) {
-            const oldKey = prefix + username;
             const newKey = prefix + uid;
 
-            // 1. ترحيل من localStorage
-            try {
-                const localData = localStorage.getItem(oldKey);
-                if (localData !== null) {
-                    // لو المفتاح الجديد فاضي بس، ننقل البيانات
-                    if (localStorage.getItem(newKey) === null) {
-                        localStorage.setItem(newKey, localData);
-                        migratedCount++;
-                    }
-                    // مسح المفتاح القديم عشان لو اتعمل حساب جديد بنفس الاسم ميورثش البيانات
-                    localStorage.removeItem(oldKey);
-                }
-            } catch (e) {
-                console.warn(`  ⚠️ خطأ في ترحيل [${oldKey}] محلياً:`, e);
-            }
+            for (const oldAlias of oldAliases) {
+                if (!oldAlias || oldAlias === uid) continue;
+                const oldKey = prefix + oldAlias;
 
-            // 2. ترحيل من Firebase (السحابة)
-            if (typeof FirebaseDB !== 'undefined' && FirebaseDB.isReady) {
+                // 1. ترحيل من localStorage
                 try {
-                    const cloudData = await FirebaseDB.get(oldKey);
-                    if (cloudData !== null && cloudData !== undefined) {
-                        // نشوف لو المفتاح الجديد فاضي في السحابة
-                        const existingNew = await FirebaseDB.get(newKey);
-                        if (existingNew === null || existingNew === undefined) {
-                            await FirebaseDB.save(newKey, cloudData);
+                    const localData = localStorage.getItem(oldKey);
+                    if (localData !== null) {
+                        if (localStorage.getItem(newKey) === null) {
+                            localStorage.setItem(newKey, localData);
                             migratedCount++;
                         }
-                        // حذف المفتاح القديم من السحابة لتوفير المساحة وعدم توريثه
-                        if (typeof FirebaseDB.delete === 'function') {
-                            await FirebaseDB.delete(oldKey);
-                        }
                     }
-                } catch (e) {
-                    console.warn(`  ⚠️ خطأ في ترحيل [${oldKey}] سحابياً:`, e);
+                } catch (e) {}
+
+                // 2. ترحيل من Firebase (السحابة)
+                if (typeof FirebaseDB !== 'undefined' && FirebaseDB.isReady) {
+                    try {
+                        const cloudData = await FirebaseDB.get(oldKey);
+                        if (cloudData !== null && cloudData !== undefined) {
+                            const existingNew = await FirebaseDB.get(newKey);
+                            if (existingNew === null || existingNew === undefined || (Array.isArray(existingNew) && existingNew.length === 0)) {
+                                await FirebaseDB.save(newKey, cloudData);
+                                migratedCount++;
+                            }
+                        }
+                    } catch (e) {}
                 }
             }
         }
 
-        // تسجيل إن الترحيل تم بنجاح
         localStorage.setItem(migrationFlag, 'done');
-        if (typeof FirebaseDB !== 'undefined' && FirebaseDB.isReady) {
-            try {
-                await FirebaseDB.save(migrationFlag, { status: 'done', migratedAt: new Date().toISOString(), fromUser: username, toUid: uid, count: migratedCount });
-            } catch(e) {}
-        }
-
         if (migratedCount > 0) {
-            console.log(`🎉 تم ترحيل ${migratedCount} مفتاح بيانات بنجاح للمستخدم [${username}] → [${uid}]`);
-        } else {
-            console.log(`ℹ️ لا توجد بيانات قديمة تحتاج ترحيل للمستخدم [${username}]`);
+            console.log(`🎉 تم ترحيل ومزامنة ${migratedCount} مفتاح بيانات بنجاح إلى [${uid}]`);
         }
     },
 
@@ -308,7 +404,6 @@ const App = {
         const isOpen = forceState !== undefined ? forceState : !sidebar.classList.contains('open');
         sidebar.classList.toggle('open', isOpen);
         if (overlay) overlay.classList.toggle('active', isOpen);
-    },
     },
 
     showModalImage(src) {

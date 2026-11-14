@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=2.2">
+    <link rel="stylesheet" href="app.css?v=2.3">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -140,18 +140,13 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.2"></script>
-    <script src="app.js?v=2.2"></script>
+    <script src="firebase-config.js?v=2.3"></script>
+    <script src="app.js?v=2.3"></script>
     <script>
         App.requireAuth();
 
-        const currentUser = App.getUser();
-        const userId = App.getUserId();
-        const storageKey = 'salariesList_' + userId;
-        const employeesStorageKey = 'employeesList_' + userId;
-
-        let salariesData = JSON.parse(localStorage.getItem(storageKey)) || [];
-        let registeredEmployees = JSON.parse(localStorage.getItem(employeesStorageKey)) || [];
+        let salariesData = App.loadInitialData('salariesList_', []);
+        let registeredEmployees = App.loadInitialData('employeesList_', []);
 
         function loadEmployeesData() {
             const datalist = document.getElementById('employeesListCode');
@@ -175,11 +170,7 @@
 
         function saveAndRender() {
             renderTable(salariesData);
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.save(storageKey, salariesData);
-            } else {
-                localStorage.setItem(storageKey, JSON.stringify(salariesData));
-            }
+            App.saveData('salariesList_', salariesData);
         }
 
         function deleteSalary(index) {
@@ -361,21 +352,19 @@
             }
             renderTable(salariesData);
 
-            if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.subscribe(storageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        salariesData = data;
-                        renderTable(salariesData);
-                    }
-                });
+            App.subscribeData('salariesList_', (data) => {
+                if (Array.isArray(data)) {
+                    salariesData = data;
+                    renderTable(salariesData);
+                }
+            }, []);
 
-                FirebaseDB.subscribe(employeesStorageKey, (data) => {
-                    if (Array.isArray(data)) {
-                        registeredEmployees = data;
-                        loadEmployeesData();
-                    }
-                });
-            }
+            App.subscribeData('employeesList_', (data) => {
+                if (Array.isArray(data)) {
+                    registeredEmployees = data;
+                    loadEmployeesData();
+                }
+            }, []);
         };
     </script>
 </body>
