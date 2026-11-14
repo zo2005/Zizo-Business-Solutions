@@ -472,6 +472,44 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
 }
 
+/* جدول إدارة الموظفين المتجاوب بدون سكرول أفقي */
+.employees-page .table-responsive {
+    overflow-x: hidden;
+}
+
+.employees-page .employees-table {
+    table-layout: fixed;
+    width: 100%;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.employees-page .employees-table th,
+.employees-page .employees-table td {
+    white-space: normal;
+    padding: 9px 5px;
+    font-size: 12px;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.employees-page .emp-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.employees-page .emp-actions .btn {
+    padding: 4px 6px;
+    font-size: 11px;
+}
+
+.employees-page .img-thumb {
+    width: 32px;
+    height: 32px;
+}
+
 .table-responsive {
     width: 100%;
     overflow-x: auto;

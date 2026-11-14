@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -66,24 +66,36 @@
                     <form id="profitForm">
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="periodName">اسم الفترة / التواريخ (15 يوم)</label>
-                                <input type="text" id="periodName" placeholder="مثال: من 1 إلى 15 من الشهر" required>
+                                <label for="startDate">من تاريخ</label>
+                                <input type="date" id="startDate" onchange="calculatePeriodData()" required>
                             </div>
                             <div class="form-group">
-                                <label for="periodSales">إجمالي المبيعات (تلقائي/تعديل)</label>
+                                <label for="endDate">إلى تاريخ</label>
+                                <input type="date" id="endDate" onchange="calculatePeriodData()" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="periodName">اسم / وصف الفترة</label>
+                                <input type="text" id="periodName" placeholder="مثال: أرباح النصف الأول من الشهر" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="periodSales">إجمالي المبيعات بالفترة (تلقائي)</label>
                                 <input type="number" id="periodSales" min="0" step="any" placeholder="0.00" required>
                             </div>
                             <div class="form-group">
-                                <label for="purchaseCost">تكلفة الشراء والمخازن (تلقائي)</label>
+                                <label for="purchaseCost">تكلفة سحوبات المخزن بالفترة (تلقائي)</label>
                                 <input type="number" id="purchaseCost" min="0" step="any" placeholder="0.00" required>
                             </div>
                             <div class="form-group">
-                                <label for="salariesCost">رواتب الموظفين (تلقائي)</label>
+                                <label for="salariesCost">رواتب الموظفين بالفترة (تلقائي)</label>
                                 <input type="number" id="salariesCost" min="0" step="any" placeholder="0.00" required>
                             </div>
                             <div class="form-group">
                                 <label for="generalExpenses">مصروفات عامة (إيجار، مياه، إلخ)</label>
-                                <input type="number" id="generalExpenses" min="0" step="any" value="0" required>
+                                <input type="number" id="generalExpenses" min="0" step="any" value="0" oninput="updateLiveNetProfit()" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="liveNetProfit">صافي الربح المتوقع بالفترة</label>
+                                <input type="text" id="liveNetProfit" style="font-weight: 800; color: var(--primary);" readonly placeholder="0.00 ج.م">
                             </div>
                         </div>
                         <div style="margin-top: 14px;">
@@ -100,9 +112,9 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>الفترة (15 يوم)</th>
+                                    <th>الفترة</th>
                                     <th>إجمالي المبيعات</th>
-                                    <th>تكلفة الشراء</th>
+                                    <th>سحب المخزن</th>
                                     <th>الرواتب</th>
                                     <th>مصروفات عامة</th>
                                     <th>إجمالي المصروفات</th>
@@ -131,41 +143,140 @@
         const storageKey = 'profitList_' + userId;
         let profitData = JSON.parse(localStorage.getItem(storageKey)) || [];
 
-        function autoFillSystemData() {
+        function initDefaultDates() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = today.getDate();
+
+            let sDate, eDate;
+            if (day <= 15) {
+                sDate = `${year}-${month}-01`;
+                eDate = `${year}-${month}-15`;
+            } else {
+                sDate = `${year}-${month}-16`;
+                const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
+                eDate = `${year}-${month}-${lastDay}`;
+            }
+
+            if (!document.getElementById('startDate').value) {
+                document.getElementById('startDate').value = sDate;
+            }
+            if (!document.getElementById('endDate').value) {
+                document.getElementById('endDate').value = eDate;
+            }
+        }
+
+        function calculatePeriodData() {
+            const sDate = document.getElementById('startDate').value;
+            const eDate = document.getElementById('endDate').value;
+            if (!sDate || !eDate) return;
+
+            // اسم الفترة المقترح
+            const periodField = document.getElementById('periodName');
+            if (!periodField.value || periodField.value.startsWith('فترة من')) {
+                periodField.value = `فترة من ${sDate} إلى ${eDate}`;
+            }
+
+            // 1. حساب المبيعات المسجلة بين التاريخين (deliveryDate)
             const salesKey = 'salesList_' + userId;
             const salesData = JSON.parse(localStorage.getItem(salesKey)) || [];
-            let totalSales = salesData.reduce((sum, s) => sum + (parseFloat(s.grandTotalPrice) || 0), 0);
+            let totalPeriodSales = 0;
+            salesData.forEach(sale => {
+                const d = sale.deliveryDate;
+                if (!d || (d >= sDate && d <= eDate)) {
+                    totalPeriodSales += (parseFloat(sale.grandTotalPrice) || 0);
+                }
+            });
 
-            let totalPurchaseCost = 0;
+            // 2. حساب تكلفة سحوبات المخزن في الفترة المحددة
+            // بناء خريطة أسعار الأصناف من الجداول الثلاثة
+            const itemPriceMap = {};
             const generalInv = JSON.parse(localStorage.getItem('inventoryGeneral_' + userId)) || [];
             generalInv.forEach(i => {
-                const prc = parseFloat(i.price) || 0;
-                if (i.stocks) {
-                    Object.keys(i.stocks).forEach(sz => {
-                        totalPurchaseCost += (parseFloat(i.stocks[sz]) || 0) * prc;
-                    });
-                } else {
-                    totalPurchaseCost += (i.currentStock || 0) * prc;
+                if (i.name) {
+                    const prc = parseFloat(i.price) || 0;
+                    itemPriceMap[i.name.trim()] = prc;
+                    if (Array.isArray(i.sizes)) {
+                        i.sizes.forEach(sz => {
+                            itemPriceMap[`${i.name.trim()} (${sz})`] = prc;
+                        });
+                    }
                 }
             });
 
             const singerInv = JSON.parse(localStorage.getItem('inventorySinger_' + userId)) || [];
             singerInv.forEach(i => {
-                totalPurchaseCost += ((i.currentStock || 0) + (parseFloat(i.purchase) || 0)) * (parseFloat(i.price) || 0);
+                const prc = parseFloat(i.price) || 0;
+                if (i.code) itemPriceMap[`بكر سنجر كود ${i.code}`] = prc;
             });
 
             const overlockInv = JSON.parse(localStorage.getItem('inventoryOverlock_' + userId)) || [];
             overlockInv.forEach(i => {
-                totalPurchaseCost += ((i.currentStock || 0) + (parseFloat(i.purchase) || 0)) * (parseFloat(i.price) || 0);
+                const prc = parseFloat(i.price) || 0;
+                if (i.color) itemPriceMap[`بكر أوفر ${i.color}`] = prc;
             });
 
+            // قراءة سجل العمليات inventoryHistory_ لحساب السحب بالفترة
+            const historyKey = 'inventoryHistory_' + userId;
+            const historyList = JSON.parse(localStorage.getItem(historyKey)) || [];
+            let totalWithdrawCost = 0;
+
+            historyList.forEach(hist => {
+                if (hist.type === 'سحب') {
+                    const hDate = hist.date;
+                    if (!hDate || (hDate >= sDate && hDate <= eDate)) {
+                        const itemName = (hist.item || '').trim();
+                        let unitPrice = itemPriceMap[itemName] || 0;
+                        if (!unitPrice) {
+                            // محاولة مطابقة الاسم الأساسي قبل القوس
+                            const baseName = itemName.split('(')[0].trim();
+                            unitPrice = itemPriceMap[baseName] || 0;
+                        }
+                        const qty = parseFloat(hist.qty) || 0;
+                        totalWithdrawCost += (qty * unitPrice);
+                    }
+                }
+            });
+
+            // 3. حساب الرواتب المصروفة بالفترة
             const salariesKey = 'salariesList_' + userId;
             const salariesData = JSON.parse(localStorage.getItem(salariesKey)) || [];
-            let totalSalaries = salariesData.reduce((sum, sal) => sum + (parseFloat(sal.netDue) || 0), 0);
+            let totalPeriodSalaries = 0;
+            salariesData.forEach(sal => {
+                const sSalDate = sal.date;
+                // إذا وجد تاريخ مسجل للراتب نقارنه بالفترة، وإذا لم يكن له تاريخ نحسبه
+                if (!sSalDate || (sSalDate >= sDate && sSalDate <= eDate)) {
+                    totalPeriodSalaries += (parseFloat(sal.netDue) || 0);
+                }
+            });
 
-            document.getElementById('periodSales').value = totalSales.toFixed(2);
-            document.getElementById('purchaseCost').value = totalPurchaseCost.toFixed(2);
-            document.getElementById('salariesCost').value = totalSalaries.toFixed(2);
+            document.getElementById('periodSales').value = totalPeriodSales.toFixed(2);
+            document.getElementById('purchaseCost').value = totalWithdrawCost.toFixed(2);
+            document.getElementById('salariesCost').value = totalPeriodSalaries.toFixed(2);
+
+            updateLiveNetProfit();
+        }
+
+        function updateLiveNetProfit() {
+            const sales = parseFloat(document.getElementById('periodSales').value) || 0;
+            const withdrawCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
+            const salaries = parseFloat(document.getElementById('salariesCost').value) || 0;
+            const generalExp = parseFloat(document.getElementById('generalExpenses').value) || 0;
+
+            const totalExp = withdrawCost + salaries + generalExp;
+            const net = sales - totalExp;
+
+            const netField = document.getElementById('liveNetProfit');
+            if (netField) {
+                netField.value = net.toFixed(2) + ' ج.م';
+                netField.style.color = net >= 0 ? 'var(--primary)' : 'var(--danger)';
+            }
+        }
+
+        function autoFillSystemData() {
+            initDefaultDates();
+            calculatePeriodData();
         }
 
         function saveAndRender() {

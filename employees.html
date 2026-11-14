@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=2.2">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -27,7 +27,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
 </head>
-<body>
+<body class="employees-page">
     <div class="dashboard-container">
         <aside class="sidebar"></aside>
 
@@ -97,18 +97,18 @@
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table>
+                        <table class="employees-table">
                             <thead>
                                 <tr>
-                                    <th>الكود</th>
-                                    <th>الاسم</th>
-                                    <th>الرقم القومي</th>
-                                    <th>الجوال</th>
-                                    <th>العنوان</th>
-                                    <th>تاريخ التعيين</th>
-                                    <th>الراتب الشهري</th>
-                                    <th>صورة البطاقة</th>
-                                    <th>إجراءات</th>
+                                    <th style="width: 8%;">الكود</th>
+                                    <th style="width: 15%;">الاسم</th>
+                                    <th style="width: 14%;">الرقم القومي</th>
+                                    <th style="width: 12%;">الجوال</th>
+                                    <th style="width: 15%;">العنوان</th>
+                                    <th style="width: 10%;">تاريخ التعيين</th>
+                                    <th style="width: 11%;">الراتب</th>
+                                    <th style="width: 6%;">البطاقة</th>
+                                    <th style="width: 9%;">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody id="empTableBody"></tbody>
@@ -132,7 +132,16 @@
         const storageKey = 'employeesList_' + userId;
         let employees = JSON.parse(localStorage.getItem(storageKey)) || [];
 
+        function sortEmployees(list) {
+            return [...list].sort((a, b) => {
+                const codeA = (a && a.code !== undefined && a.code !== null) ? String(a.code).trim() : '';
+                const codeB = (b && b.code !== undefined && b.code !== null) ? String(b.code).trim() : '';
+                return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+        }
+
         function saveAndRender() {
+            employees = sortEmployees(employees);
             renderTable(employees);
             if (typeof FirebaseDB !== 'undefined') {
                 FirebaseDB.save(storageKey, employees);
@@ -144,24 +153,27 @@
         function renderTable(data) {
             const tbody = document.getElementById('empTableBody');
             tbody.innerHTML = '';
-            if (data.length === 0) {
+            const sortedData = sortEmployees(data);
+            if (sortedData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" style="color: var(--text-muted); padding: 18px;">لا توجد موظفين مسجلين لهذا الحساب حتى الآن.</td></tr>`;
                 return;
             }
-            data.forEach(emp => {
+            sortedData.forEach(emp => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${emp.code || '-'}</strong></td>
                     <td><strong>${emp.name || '-'}</strong></td>
-                    <td>${emp.nationalId || '-'}</td>
+                    <td style="font-size: 11.5px; word-break: break-all;">${emp.nationalId || '-'}</td>
                     <td>${emp.phone || '-'}</td>
                     <td>${emp.address || '-'}</td>
                     <td>${emp.hireDate || '-'}</td>
                     <td><strong style="color: var(--primary);">${(emp.salary || 0).toFixed(2)} ج.م</strong></td>
                     <td><img src="${emp.imgUrl}" class="img-thumb" onclick="App.showModalImage('${emp.imgUrl}')" alt="البطاقة"></td>
                     <td>
-                        <button class="btn btn-secondary btn-sm" onclick="editEmp(${emp.id})">${App.icon('edit', 12)} تعديل</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteEmp(${emp.id})">${App.icon('trash', 12)} حذف</button>
+                        <div class="emp-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="editEmp(${emp.id})">${App.icon('edit', 12)} تعديل</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteEmp(${emp.id})">${App.icon('trash', 12)} حذف</button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);

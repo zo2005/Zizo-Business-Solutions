@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -41,7 +41,7 @@
                     <div class="badge badge-info" style="font-size: 13.5px; padding: 6px 14px;">
                         إجمالي المبيعات: <strong id="topGrandTotalSales" style="margin-right: 5px;">0.00 ج.م</strong>
                     </div>
-                    <button class="btn btn-primary" id="printBtn" onclick="window.print()"></button>
+                    <button class="btn btn-primary" id="printAllBtn" onclick="printAllInvoices()"></button>
                 </div>
             </header>
 
@@ -337,6 +337,7 @@
                     <td><strong>${totalItems} قطعة</strong></td>
                     <td><strong style="color: var(--primary);">${sale.grandTotalPrice.toFixed(2)} ج.م</strong></td>
                     <td>
+                        <button class="btn btn-primary btn-sm" onclick="printSingleInvoice(${index})">${App.icon('printer', 12)} طباعة</button>
                         <button class="btn btn-secondary btn-sm" onclick="editSale(${index})">${App.icon('edit', 12)} تعديل</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteSale(${index})">${App.icon('trash', 12)} حذف</button>
                     </td>
@@ -410,11 +411,202 @@
             addInvoiceItemRow();
         });
 
+        function printAllInvoices() {
+            window.print();
+        }
+
+        function printSingleInvoice(index) {
+            const sale = salesData[index];
+            if (!sale) return;
+
+            const company = App.getCompany() || 'Zizo Solutions';
+            const user = App.getUser() || '';
+
+            let itemsRowsHTML = '';
+            let totalBagsAll = 0;
+            let totalItemsAll = 0;
+
+            sale.items.forEach((item, itemIdx) => {
+                totalBagsAll += item.totalBags || 0;
+                totalItemsAll += item.totalItems || 0;
+
+                let bagsSummary = [];
+                if (item.bagsDetails && item.bagsDetails.length > 0) {
+                    item.bagsDetails.forEach(b => {
+                        bagsSummary.push(`${b.bags} كيس × ${b.itemsPerBag} قطعة`);
+                    });
+                }
+                const bagsText = bagsSummary.join(' | ') || '-';
+
+                itemsRowsHTML += `
+                    <tr>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${itemIdx + 1}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: right;">
+                            <strong>${item.itemType}</strong>
+                            ${item.itemModelNo ? '<br><small style="color: #555;">موديل: ' + item.itemModelNo + '</small>' : ''}
+                        </td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.totalBags}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${bagsText}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.totalItems}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.itemPrice.toFixed(2)} ج.م</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;"><strong>${(item.totalItems * item.itemPrice).toFixed(2)} ج.م</strong></td>
+                    </tr>
+                `;
+            });
+
+            const printWindow = window.open('', '_blank', 'width=800,height=900');
+            if (!printWindow) {
+                alert("يرجى السماح بالنوافذ المنبثقة (Popups) في المتصفح لطباعة الفاتورة.");
+                return;
+            }
+
+            const invoiceHTML = `
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>فاتورة مبيعات - رقم ${sale.invoiceNo}</title>
+                    <style>
+                        body {
+                            font-family: 'Cairo', Tahoma, Arial, sans-serif;
+                            direction: rtl;
+                            text-align: right;
+                            padding: 24px;
+                            color: #111;
+                            background: #fff;
+                        }
+                        .invoice-box {
+                            max-width: 750px;
+                            margin: auto;
+                            border: 1px solid #ccc;
+                            padding: 24px;
+                            border-radius: 8px;
+                        }
+                        .header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            border-bottom: 2px solid #004d40;
+                            padding-bottom: 14px;
+                            margin-bottom: 18px;
+                        }
+                        .company-name {
+                            font-size: 22px;
+                            font-weight: 800;
+                            color: #004d40;
+                        }
+                        .invoice-meta {
+                            display: flex;
+                            justify-content: space-between;
+                            background: #f8fafc;
+                            padding: 12px 16px;
+                            border-radius: 6px;
+                            margin-bottom: 18px;
+                            border: 1px solid #e2e8f0;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 18px;
+                        }
+                        th {
+                            background-color: #004d40;
+                            color: #fff;
+                            border: 1px solid #004d40;
+                            padding: 8px;
+                            text-align: center;
+                            font-size: 13px;
+                        }
+                        .total-section {
+                            display: flex;
+                            justify-content: space-between;
+                            background: #e0f2f1;
+                            border: 2px solid #004d40;
+                            padding: 12px 18px;
+                            border-radius: 6px;
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #004d40;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #666;
+                            border-top: 1px dashed #ccc;
+                            padding-top: 10px;
+                        }
+                        @media print {
+                            body { padding: 0; }
+                            .invoice-box { border: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="invoice-box">
+                        <div class="header">
+                            <div>
+                                <div class="company-name">${company}</div>
+                                <div style="font-size: 13px; color: #555;">المستخدم: ${user}</div>
+                            </div>
+                            <div style="text-align: left;">
+                                <h2 style="margin: 0; color: #004d40;">فاتورة مبيعات</h2>
+                                <div style="font-size: 14px; font-weight: bold; margin-top: 4px;">رقم: #${sale.invoiceNo}</div>
+                            </div>
+                        </div>
+
+                        <div class="invoice-meta">
+                            <div><strong>رقم الفاتورة:</strong> ${sale.invoiceNo}</div>
+                            <div><strong>تاريخ التسليم:</strong> ${sale.deliveryDate}</div>
+                            <div><strong>إجمالي الأكياس:</strong> ${totalBagsAll} كيس</div>
+                            <div><strong>إجمالي القطع:</strong> ${totalItemsAll} قطعة</div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;">#</th>
+                                    <th style="width: 25%;">الصنف / الموديل</th>
+                                    <th style="width: 10%;">الأكياس</th>
+                                    <th style="width: 28%;">تفاصيل التعبئة</th>
+                                    <th style="width: 10%;">إجمالي القطع</th>
+                                    <th style="width: 10%;">سعر القطعة</th>
+                                    <th style="width: 12%;">الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsRowsHTML}
+                            </tbody>
+                        </table>
+
+                        <div class="total-section">
+                            <div>المبلغ الإجمالي المستحق:</div>
+                            <div>${sale.grandTotalPrice.toFixed(2)} ج.م</div>
+                        </div>
+
+                        <div class="footer">
+                            شكراً لتعاملكم معنا - طبعت بواسطة Zizo Business Solutions في ${new Date().toLocaleDateString('ar-EG')}
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        };
+                    </scr` + `ipt>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.open();
+            printWindow.document.write(invoiceHTML);
+            printWindow.document.close();
+        }
+
         window.onload = function() {
             App.initLayout('sales');
 
             document.getElementById('pageHeaderIcon').innerHTML = App.icon('receipt', 20);
-            document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
+            document.getElementById('printAllBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة كل الفواتير</span>';
             document.getElementById('formCardIcon').innerHTML = App.icon('edit', 16);
             document.getElementById('tableCardIcon').innerHTML = App.icon('receipt', 16);
             document.getElementById('addItemRowBtn').innerHTML = App.icon('plus', 14) + ' <span>إضافة صنف آخر بنفس الفاتورة</span>';

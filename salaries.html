@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -54,6 +54,10 @@
                         <input type="hidden" id="editIndex" value="-1">
                         <div class="form-grid">
                             <div class="form-group">
+                                <label for="salaryDate">تاريخ صرف الراتب / الفترة</label>
+                                <input type="date" id="salaryDate" required>
+                            </div>
+                            <div class="form-group">
                                 <label for="employeeCode">كود الموظف</label>
                                 <input type="text" id="employeeCode" list="employeesListCode" placeholder="اختر أو اكتب الكود" oninput="onEmployeeCodeChanged()" required>
                                 <datalist id="employeesListCode"></datalist>
@@ -63,16 +67,16 @@
                                 <input type="text" id="employeeName" placeholder="الاسم" required>
                             </div>
                             <div class="form-group">
-                                <label for="basicSalary">الراتب الأساسي الشهري (ج.م)</label>
+                                <label for="basicSalary">الراتب الأساسي الشهري (ج.م - على 26 يوم)</label>
                                 <input type="number" id="basicSalary" min="0" step="0.01" placeholder="0.00" required>
                             </div>
                             <div class="form-group">
-                                <label for="workDays">أيام العمل الفعلية</label>
-                                <input type="number" id="workDays" min="0" max="15" step="0.5" placeholder="مثال: 13" required>
+                                <label for="workDays">أيام العمل الفعلية (مثال: 13 يوم نصف شهر)</label>
+                                <input type="number" id="workDays" min="0" max="31" step="0.5" placeholder="مثال: 13" required>
                             </div>
                             <div class="form-group">
-                                <label for="fridayDays">عدد أيام الجمعة</label>
-                                <input type="number" id="fridayDays" min="0" max="5" value="0" required>
+                                <label for="fridayDays">عدد أيام الجمعة (اليوم بضعف اليوم العادي)</label>
+                                <input type="number" id="fridayDays" min="0" max="10" step="0.5" value="0" placeholder="يقبل أنصاص مثل 1.5" required>
                             </div>
                             <div class="form-group">
                                 <label for="overtimeHours">ساعات السهر الإضافية</label>
@@ -195,6 +199,7 @@
 
         function editSalary(index) {
             const sal = salariesData[index];
+            document.getElementById('salaryDate').value = sal.date || new Date().toISOString().split('T')[0];
             document.getElementById('employeeCode').value = sal.employeeCode || '';
             document.getElementById('employeeName').value = sal.employeeName || '';
             document.getElementById('basicSalary').value = sal.basicSalary || '';
@@ -210,6 +215,31 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        function calculateNet(basicSalary, workDays, fridayDays, overtimeHours, delayHours, bonus, deductions) {
+            const basic = parseFloat(basicSalary) || 0;
+            const wDays = parseFloat(workDays) || 0;
+            const fDays = parseFloat(fridayDays) || 0;
+            const oHours = parseFloat(overtimeHours) || 0;
+            const dHours = parseFloat(delayHours) || 0;
+            const bon = parseFloat(bonus) || 0;
+            const ded = parseFloat(deductions) || 0;
+
+            // حساب اليوم على أساس 26 يوم عمل شهرياً
+            const dayRate = basic / 26;
+            const hourRate = dayRate / 8;
+            const normalDaysPay = dayRate * wDays;
+            // يوم الجمعة بضعف اليوم العادي (يقبل أنصاف أيام مثل 1.5 جمعة = 3 أيام عمل)
+            const fridayPay = (dayRate * 2) * fDays;
+            const overtimePay = (oHours / 3) * (dayRate * 0.5);
+            const delayDeduction = dHours * hourRate;
+            const netSalary = normalDaysPay + fridayPay + overtimePay + bon - delayDeduction - ded;
+
+            return {
+                dayRate,
+                netSalary
+            };
+        }
+
         function renderTable(data) {
             const tbody = document.getElementById('salariesTableBody');
             tbody.innerHTML = '';
@@ -223,6 +253,16 @@
 
             let totalSum = 0;
             data.forEach((sal, index) => {
+                const calc = calculateNet(
+                    sal.basicSalary,
+                    sal.workDays,
+                    sal.fridayDays,
+                    sal.overtimeHours,
+                    sal.delayHours,
+                    sal.bonus,
+                    sal.deductions
+                );
+
                 const basic = parseFloat(sal.basicSalary) || 0;
                 const wDays = parseFloat(sal.workDays) || 0;
                 const fDays = parseFloat(sal.fridayDays) || 0;
@@ -230,14 +270,7 @@
                 const dHours = parseFloat(sal.delayHours) || 0;
                 const bon = parseFloat(sal.bonus) || 0;
                 const ded = parseFloat(sal.deductions) || 0;
-
-                const dayRate = basic / 13;
-                const hourRate = dayRate / 8;
-                const normalDaysPay = dayRate * wDays;
-                const fridayPay = (dayRate * 2) * fDays;
-                const overtimePay = (oHours / 3) * (dayRate * 0.5);
-                const delayDeduction = dHours * hourRate;
-                const netSalary = normalDaysPay + fridayPay + overtimePay + bon - delayDeduction - ded;
+                const netSalary = calc.netSalary;
 
                 sal.netDue = netSalary;
                 totalSum += netSalary;
@@ -268,6 +301,7 @@
 
         document.getElementById('salariesForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            const salaryDate = document.getElementById('salaryDate').value || new Date().toISOString().split('T')[0];
             const employeeCode = document.getElementById('employeeCode').value.trim();
             const employeeName = document.getElementById('employeeName').value.trim();
             const basicSalary = parseFloat(document.getElementById('basicSalary').value) || 0;
@@ -278,17 +312,13 @@
             const bonus = parseFloat(document.getElementById('bonus').value) || 0;
             const deductions = parseFloat(document.getElementById('deductions').value) || 0;
 
-            const dayRate = basicSalary / 13;
-            const hourRate = dayRate / 8;
-            const normalDaysPay = dayRate * workDays;
-            const fridayPay = (dayRate * 2) * fridayDays;
-            const overtimePay = (overtimeHours / 3) * (dayRate * 0.5);
-            const delayDeduction = delayHours * hourRate;
-            const netDue = normalDaysPay + fridayPay + overtimePay + bonus - delayDeduction - deductions;
+            const calc = calculateNet(basicSalary, workDays, fridayDays, overtimeHours, delayHours, bonus, deductions);
+            const netDue = calc.netSalary;
 
             const editIndex = parseInt(document.getElementById('editIndex').value);
             const record = {
                 id: editIndex > -1 && salariesData[editIndex] ? salariesData[editIndex].id : Date.now(),
+                date: salaryDate,
                 employeeCode,
                 employeeName,
                 basicSalary,
@@ -310,6 +340,7 @@
 
             saveAndRender();
             this.reset();
+            document.getElementById('salaryDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>حساب وصرف الراتب</span>';
         });
 
@@ -324,6 +355,10 @@
             document.getElementById('clearSalariesBtn').innerHTML = App.icon('trash', 13) + ' <span>تصفير كشف الرواتب</span>';
 
             loadEmployeesData();
+            const dateInput = document.getElementById('salaryDate');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
             renderTable(salariesData);
 
             if (typeof FirebaseDB !== 'undefined') {
