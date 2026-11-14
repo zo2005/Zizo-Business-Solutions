@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#10b981">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=2.2">
 </head>
 <body class="auth-page">
     <div class="auth-card">
@@ -50,8 +50,8 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.1"></script>
-    <script src="app.js?v=2.1"></script>
+    <script src="firebase-config.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
         document.getElementById('regLogoIcon').innerHTML = '<span>Z</span>';
         document.getElementById('regBtn').innerHTML = App.icon('check', 16) + ' <span>تسجيل الحساب</span>';
@@ -98,8 +98,8 @@
                 return;
             }
 
-            // توليد User ID ثابت فريد لكل مستخدم (لا يتغير حتى لو غيّر الاسم أو كلمة المرور)
-            const uid = 'uid_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+            // توليد User ID ثابت وموحد لكل مستخدم يضمن تطابق البيانات على جميع الأجهزة
+            const uid = 'uid_' + username.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
 
             const newUser = {
                 uid,
@@ -128,5 +128,6 @@
     </script>
 </body>
 </html>
+
 
 

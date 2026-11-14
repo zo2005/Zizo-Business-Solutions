@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#10b981">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=2.2">
 </head>
 <body class="auth-page">
     <div class="auth-card">
@@ -43,14 +43,18 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.1"></script>
-    <script src="app.js?v=2.1"></script>
+    <script src="firebase-config.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
         document.getElementById('authLogoIcon').innerHTML = '<span>Z</span>';
         document.getElementById('loginBtn').innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
 
-        // مسح أي جلسة قديمة محفوظة في localStorage فور فتح صفحة الدخول
-        localStorage.removeItem('isLoggedIn');
+        // إذا كان المستخدم مسجل دخول بالفعل، تحويله مباشرة إلى صفحة المخزن
+        const isAlreadyLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
+        const hasActiveUser = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+        if (isAlreadyLoggedIn && hasActiveUser) {
+            window.location.replace('dashboard.html');
+        }
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -67,6 +71,8 @@
                 return;
             }
 
+            const normalizedUser = user.toLowerCase();
+
             // فحص كلمة مرور المدير (الحالية أو المحدثة)
             let adminSavedPass = localStorage.getItem('adminPassword') || '200522004';
             if (typeof FirebaseDB !== 'undefined') {
@@ -77,21 +83,26 @@
                 }
             }
 
-            // حساب الإدارة الرئيسي (دخول مباشر)
-            if ((user === 'Zizo2312005' || user === 'admin') && (pass === adminSavedPass || pass === '200522004')) {
+            // حساب الإدارة الرئيسي بكل مرونة لضمان التوافق بين اللابتوب والموبايل (Admin / Zizo2312005 / zizo)
+            const isAdminMatch = normalizedUser === 'zizo2312005' || 
+                                 normalizedUser === 'admin' || 
+                                 normalizedUser === 'zizo' || 
+                                 normalizedUser === 'zizo_solutions' ||
+                                 normalizedUser.startsWith('zizo');
+            if (isAdminMatch && (pass === adminSavedPass || pass === '200522004')) {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', 'admin');
                 sessionStorage.setItem('currentUserId', 'admin');
                 sessionStorage.setItem('currentCompany', '');
-                localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', 'admin');
                 localStorage.setItem('currentUserId', 'admin');
                 localStorage.setItem('currentCompany', '');
+                localStorage.setItem('isLoggedIn', 'true');
 
                 // ترحيل بيانات الأدمين (لو كانت مخزنة باسم مختلف)
                 await App.migrateUserData(user, 'admin');
 
-                const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
+                const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
                 sessionStorage.removeItem('redirectAfterLogin');
                 window.location.href = target;
                 return;
@@ -109,7 +120,12 @@
                 usersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
             }
 
-            const foundUser = usersList.find(u => u.username === user && u.password === pass);
+            // البحث بحرية وعدم تحسس لحالة الحروف الإنجليزية أو البريد
+            const foundUser = usersList.find(u => 
+                ((u.username && u.username.toLowerCase().trim() === normalizedUser) ||
+                 (u.email && u.email.toLowerCase().trim() === normalizedUser)) &&
+                u.password === pass
+            );
 
             submitBtn.disabled = false;
             submitBtn.innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
@@ -124,10 +140,9 @@
                     return;
                 }
 
-                // توليد uid لو المستخدم القديم مش عنده (ترحيل تلقائي)
+                // ضمان ثبات الـ UID عبر جميع الأجهزة (لابتوب وتليفون) لتطابق مفاتيح البيانات السحابية
                 if (!foundUser.uid) {
-                    foundUser.uid = 'uid_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-                    // حفظ uid الجديد في قائمة المستخدمين
+                    foundUser.uid = 'uid_' + foundUser.username.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
                     if (typeof FirebaseDB !== 'undefined') {
                         FirebaseDB.save('systemUsers', usersList);
                     } else {
@@ -139,15 +154,15 @@
                 sessionStorage.setItem('currentUser', foundUser.username);
                 sessionStorage.setItem('currentUserId', foundUser.uid);
                 sessionStorage.setItem('currentCompany', foundUser.companyName || '');
-                localStorage.removeItem('isLoggedIn');
                 localStorage.setItem('currentUser', foundUser.username);
                 localStorage.setItem('currentUserId', foundUser.uid);
                 localStorage.setItem('currentCompany', foundUser.companyName || '');
+                localStorage.setItem('isLoggedIn', 'true');
 
                 // ترحيل بيانات المستخدم من المفاتيح القديمة (بالاسم) إلى الجديدة (بالـ UID)
                 await App.migrateUserData(foundUser.username, foundUser.uid);
 
-                const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
+                const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
                 sessionStorage.removeItem('redirectAfterLogin');
                 window.location.href = target;
                 return;
@@ -158,5 +173,6 @@
     </script>
 </body>
 </html>
+
 
 

@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=2.2">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -102,8 +102,8 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.1"></script>
-    <script src="app.js?v=2.1"></script>
+    <script src="firebase-config.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
         App.requireAuth();
 
@@ -113,6 +113,13 @@
         const customItemsStorageKey = 'customSalesItems_' + userId;
 
         let salesData = JSON.parse(localStorage.getItem(storageKey)) || [];
+        // إذا كان الحساب إدارياً وكانت بيانات هذا المفتاح محلياً فارغة، استرجاع كاش الإدارة
+        if ((!salesData || salesData.length === 0) && App.isAdmin()) {
+            try {
+                const adminCached = localStorage.getItem('salesList_admin');
+                if (adminCached) salesData = JSON.parse(adminCached) || [];
+            } catch(e) {}
+        }
         let customItems = JSON.parse(localStorage.getItem(customItemsStorageKey)) || ['تيشيرت', 'شورت', 'بنطلون', 'أكياس', 'أستك'];
 
         function saveAndRender() {
@@ -617,9 +624,22 @@
             renderTable(salesData);
 
             if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.subscribe(storageKey, (data) => {
-                    if (Array.isArray(data)) {
+                FirebaseDB.subscribe(storageKey, async (data) => {
+                    if (Array.isArray(data) && data.length > 0) {
                         salesData = data;
+                        renderTable(salesData);
+                    } else if (App.isAdmin() && storageKey !== 'salesList_admin') {
+                        const adminCloudData = await FirebaseDB.get('salesList_admin');
+                        if (Array.isArray(adminCloudData) && adminCloudData.length > 0) {
+                            salesData = adminCloudData;
+                            renderTable(salesData);
+                            FirebaseDB.save(storageKey, adminCloudData);
+                        } else {
+                            salesData = data || [];
+                            renderTable(salesData);
+                        }
+                    } else {
+                        salesData = data || [];
                         renderTable(salesData);
                     }
                 });
@@ -637,6 +657,7 @@
     </script>
 </body>
 </html>
+
 
 
 
