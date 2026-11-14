@@ -1,8 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <title>إدارة المبيعات والفواتير - Zizo Solutions</title>
     <script>
         localStorage.removeItem('isLoggedIn');
@@ -15,7 +17,15 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=2.2">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
 </head>
 <body>
     <div class="dashboard-container">
@@ -31,7 +41,7 @@
                     <div class="badge badge-info" style="font-size: 13.5px; padding: 6px 14px;">
                         إجمالي المبيعات: <strong id="topGrandTotalSales" style="margin-right: 5px;">0.00 ج.م</strong>
                     </div>
-                    <button class="btn btn-primary" id="printBtn" onclick="window.print()"></button>
+                    <button class="btn btn-primary" id="printAllBtn" onclick="printAllInvoices()"></button>
                 </div>
             </header>
 
@@ -92,16 +102,24 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.1"></script>
-    <script src="app.js?v=2.1"></script>
+    <script src="firebase-config.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
         App.requireAuth();
 
         const currentUser = App.getUser();
-        const storageKey = 'salesList_' + currentUser;
-        const customItemsStorageKey = 'customSalesItems_' + currentUser;
+        const userId = App.getUserId();
+        const storageKey = 'salesList_' + userId;
+        const customItemsStorageKey = 'customSalesItems_' + userId;
 
         let salesData = JSON.parse(localStorage.getItem(storageKey)) || [];
+        // إذا كان الحساب إدارياً وكانت بيانات هذا المفتاح محلياً فارغة، استرجاع كاش الإدارة
+        if ((!salesData || salesData.length === 0) && App.isAdmin()) {
+            try {
+                const adminCached = localStorage.getItem('salesList_admin');
+                if (adminCached) salesData = JSON.parse(adminCached) || [];
+            } catch(e) {}
+        }
         let customItems = JSON.parse(localStorage.getItem(customItemsStorageKey)) || ['تيشيرت', 'شورت', 'بنطلون', 'أكياس', 'أستك'];
 
         function saveAndRender() {
@@ -326,6 +344,7 @@
                     <td><strong>${totalItems} قطعة</strong></td>
                     <td><strong style="color: var(--primary);">${sale.grandTotalPrice.toFixed(2)} ج.م</strong></td>
                     <td>
+                        <button class="btn btn-primary btn-sm" onclick="printSingleInvoice(${index})">${App.icon('printer', 12)} طباعة</button>
                         <button class="btn btn-secondary btn-sm" onclick="editSale(${index})">${App.icon('edit', 12)} تعديل</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteSale(${index})">${App.icon('trash', 12)} حذف</button>
                     </td>
@@ -399,11 +418,202 @@
             addInvoiceItemRow();
         });
 
+        function printAllInvoices() {
+            window.print();
+        }
+
+        function printSingleInvoice(index) {
+            const sale = salesData[index];
+            if (!sale) return;
+
+            const company = App.getCompany() || 'Zizo Solutions';
+            const user = App.getUser() || '';
+
+            let itemsRowsHTML = '';
+            let totalBagsAll = 0;
+            let totalItemsAll = 0;
+
+            sale.items.forEach((item, itemIdx) => {
+                totalBagsAll += item.totalBags || 0;
+                totalItemsAll += item.totalItems || 0;
+
+                let bagsSummary = [];
+                if (item.bagsDetails && item.bagsDetails.length > 0) {
+                    item.bagsDetails.forEach(b => {
+                        bagsSummary.push(`${b.bags} كيس × ${b.itemsPerBag} قطعة`);
+                    });
+                }
+                const bagsText = bagsSummary.join(' | ') || '-';
+
+                itemsRowsHTML += `
+                    <tr>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${itemIdx + 1}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: right;">
+                            <strong>${item.itemType}</strong>
+                            ${item.itemModelNo ? '<br><small style="color: #555;">موديل: ' + item.itemModelNo + '</small>' : ''}
+                        </td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.totalBags}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${bagsText}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.totalItems}</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.itemPrice.toFixed(2)} ج.م</td>
+                        <td style="border: 1px solid #333; padding: 8px; text-align: center;"><strong>${(item.totalItems * item.itemPrice).toFixed(2)} ج.م</strong></td>
+                    </tr>
+                `;
+            });
+
+            const printWindow = window.open('', '_blank', 'width=800,height=900');
+            if (!printWindow) {
+                alert("يرجى السماح بالنوافذ المنبثقة (Popups) في المتصفح لطباعة الفاتورة.");
+                return;
+            }
+
+            const invoiceHTML = `
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>فاتورة مبيعات - رقم ${sale.invoiceNo}</title>
+                    <style>
+                        body {
+                            font-family: 'Cairo', Tahoma, Arial, sans-serif;
+                            direction: rtl;
+                            text-align: right;
+                            padding: 24px;
+                            color: #111;
+                            background: #fff;
+                        }
+                        .invoice-box {
+                            max-width: 750px;
+                            margin: auto;
+                            border: 1px solid #ccc;
+                            padding: 24px;
+                            border-radius: 8px;
+                        }
+                        .header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            border-bottom: 2px solid #004d40;
+                            padding-bottom: 14px;
+                            margin-bottom: 18px;
+                        }
+                        .company-name {
+                            font-size: 22px;
+                            font-weight: 800;
+                            color: #004d40;
+                        }
+                        .invoice-meta {
+                            display: flex;
+                            justify-content: space-between;
+                            background: #f8fafc;
+                            padding: 12px 16px;
+                            border-radius: 6px;
+                            margin-bottom: 18px;
+                            border: 1px solid #e2e8f0;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 18px;
+                        }
+                        th {
+                            background-color: #004d40;
+                            color: #fff;
+                            border: 1px solid #004d40;
+                            padding: 8px;
+                            text-align: center;
+                            font-size: 13px;
+                        }
+                        .total-section {
+                            display: flex;
+                            justify-content: space-between;
+                            background: #e0f2f1;
+                            border: 2px solid #004d40;
+                            padding: 12px 18px;
+                            border-radius: 6px;
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #004d40;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #666;
+                            border-top: 1px dashed #ccc;
+                            padding-top: 10px;
+                        }
+                        @media print {
+                            body { padding: 0; }
+                            .invoice-box { border: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="invoice-box">
+                        <div class="header">
+                            <div>
+                                <div class="company-name">${company}</div>
+                                <div style="font-size: 13px; color: #555;">المستخدم: ${user}</div>
+                            </div>
+                            <div style="text-align: left;">
+                                <h2 style="margin: 0; color: #004d40;">فاتورة مبيعات</h2>
+                                <div style="font-size: 14px; font-weight: bold; margin-top: 4px;">رقم: #${sale.invoiceNo}</div>
+                            </div>
+                        </div>
+
+                        <div class="invoice-meta">
+                            <div><strong>رقم الفاتورة:</strong> ${sale.invoiceNo}</div>
+                            <div><strong>تاريخ التسليم:</strong> ${sale.deliveryDate}</div>
+                            <div><strong>إجمالي الأكياس:</strong> ${totalBagsAll} كيس</div>
+                            <div><strong>إجمالي القطع:</strong> ${totalItemsAll} قطعة</div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%;">#</th>
+                                    <th style="width: 25%;">الصنف / الموديل</th>
+                                    <th style="width: 10%;">الأكياس</th>
+                                    <th style="width: 28%;">تفاصيل التعبئة</th>
+                                    <th style="width: 10%;">إجمالي القطع</th>
+                                    <th style="width: 10%;">سعر القطعة</th>
+                                    <th style="width: 12%;">الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsRowsHTML}
+                            </tbody>
+                        </table>
+
+                        <div class="total-section">
+                            <div>المبلغ الإجمالي المستحق:</div>
+                            <div>${sale.grandTotalPrice.toFixed(2)} ج.م</div>
+                        </div>
+
+                        <div class="footer">
+                            شكراً لتعاملكم معنا - طبعت بواسطة Zizo Business Solutions في ${new Date().toLocaleDateString('ar-EG')}
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        };
+                    </scr` + `ipt>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.open();
+            printWindow.document.write(invoiceHTML);
+            printWindow.document.close();
+        }
+
         window.onload = function() {
             App.initLayout('sales');
 
             document.getElementById('pageHeaderIcon').innerHTML = App.icon('receipt', 20);
-            document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
+            document.getElementById('printAllBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة كل الفواتير</span>';
             document.getElementById('formCardIcon').innerHTML = App.icon('edit', 16);
             document.getElementById('tableCardIcon').innerHTML = App.icon('receipt', 16);
             document.getElementById('addItemRowBtn').innerHTML = App.icon('plus', 14) + ' <span>إضافة صنف آخر بنفس الفاتورة</span>';
@@ -414,9 +624,22 @@
             renderTable(salesData);
 
             if (typeof FirebaseDB !== 'undefined') {
-                FirebaseDB.subscribe(storageKey, (data) => {
-                    if (Array.isArray(data)) {
+                FirebaseDB.subscribe(storageKey, async (data) => {
+                    if (Array.isArray(data) && data.length > 0) {
                         salesData = data;
+                        renderTable(salesData);
+                    } else if (App.isAdmin() && storageKey !== 'salesList_admin') {
+                        const adminCloudData = await FirebaseDB.get('salesList_admin');
+                        if (Array.isArray(adminCloudData) && adminCloudData.length > 0) {
+                            salesData = adminCloudData;
+                            renderTable(salesData);
+                            FirebaseDB.save(storageKey, adminCloudData);
+                        } else {
+                            salesData = data || [];
+                            renderTable(salesData);
+                        }
+                    } else {
+                        salesData = data || [];
                         renderTable(salesData);
                     }
                 });
@@ -434,4 +657,9 @@
     </script>
 </body>
 </html>
+
+
+
+
+
 

@@ -57,7 +57,15 @@ const App = {
      * يستخدم في تخزين البيانات بدل اسم المستخدم عشان لو غيّر اسمه أو كلمة المرور الداتا تفضل محفوظة
      */
     getUserId() {
-        return sessionStorage.getItem('currentUserId') || localStorage.getItem('currentUserId') || this.getUser();
+        if (this.isAdmin()) {
+            return 'admin';
+        }
+        const uid = sessionStorage.getItem('currentUserId') || localStorage.getItem('currentUserId');
+        if (uid && uid !== 'undefined' && uid !== 'null') {
+            return uid;
+        }
+        const u = (this.getUser() || '').trim();
+        return u ? 'uid_' + u.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'default_user';
     },
 
     /**
@@ -150,22 +158,22 @@ const App = {
     },
 
     isAdmin() {
-        const u = this.getUser();
-        return u === 'admin' || u === 'Zizo2312005';
+        const u = (this.getUser() || '').toLowerCase().trim();
+        return u === 'admin' || u === 'zizo2312005' || u === 'zizo' || u === 'zizo2312' || u.startsWith('zizo');
     },
 
     isLoggedIn() {
-        return sessionStorage.getItem('isLoggedIn') === 'true';
+        return sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
     },
 
     requireAuth(requireAdmin = false) {
         if (!this.isLoggedIn()) {
-            sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'sales.html');
+            sessionStorage.setItem('redirectAfterLogin', window.location.pathname.split('/').pop() || 'dashboard.html');
             window.location.replace('index.html');
             return false;
         }
         if (requireAdmin && !this.isAdmin()) {
-            window.location.replace('sales.html');
+            window.location.replace('dashboard.html');
             return false;
         }
         return true;
@@ -212,6 +220,9 @@ const App = {
                         <p>${company ? 'شركة: ' + company : 'إدارة المصنع الذكية'}</p>
                     </div>
                 </div>
+                <button type="button" class="sidebar-close-btn" onclick="App.toggleSidebar(false)" title="إغلاق القائمة">
+                    ${this.icon('close', 18)}
+                </button>
             </div>
             <nav class="sidebar-nav">
                 ${navLinks.map(link => `
@@ -259,6 +270,11 @@ const App = {
         const sidebarElem = document.querySelector('.sidebar');
         if (sidebarElem) {
             sidebarElem.innerHTML = sidebarHTML;
+            sidebarElem.querySelectorAll('.sidebar-nav a').forEach(link => {
+                link.addEventListener('click', () => {
+                    this.toggleSidebar(false);
+                });
+            });
         }
 
         let overlay = document.querySelector('.sidebar-overlay');
@@ -271,8 +287,17 @@ const App = {
 
         const menuBtn = document.querySelector('.mobile-menu-btn');
         if (menuBtn) {
-            menuBtn.innerHTML = this.icon('menu', 22);
+            menuBtn.innerHTML = this.icon('menu', 18) + ' <span style="font-size: 12.5px; font-weight: 700;">القائمة</span>';
             menuBtn.onclick = () => this.toggleSidebar();
+            menuBtn.setAttribute('title', 'فتح القائمة الرئيسية');
+            menuBtn.setAttribute('aria-label', 'فتح القائمة الرئيسية');
+        }
+
+        if (!this._escapeBound) {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') this.toggleSidebar(false);
+            });
+            this._escapeBound = true;
         }
     },
 
@@ -283,6 +308,7 @@ const App = {
         const isOpen = forceState !== undefined ? forceState : !sidebar.classList.contains('open');
         sidebar.classList.toggle('open', isOpen);
         if (overlay) overlay.classList.toggle('active', isOpen);
+    },
     },
 
     showModalImage(src) {

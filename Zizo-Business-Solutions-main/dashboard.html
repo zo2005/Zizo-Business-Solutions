@@ -1,8 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <title>إدارة المخازن - Zizo Solutions</title>
     <script>
         localStorage.removeItem('isLoggedIn');
@@ -15,7 +17,15 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=2.2">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
 </head>
 <body>
     <div class="dashboard-container">
@@ -178,16 +188,17 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.1"></script>
-    <script src="app.js?v=2.1"></script>
+    <script src="firebase-config.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
         App.requireAuth();
 
         const currentUser = App.getUser();
-        const generalStorageKey = 'inventoryGeneral_' + currentUser;
-        const singerStorageKey = 'inventorySinger_' + currentUser;
-        const overlockStorageKey = 'inventoryOverlock_' + currentUser;
-        const historyStorageKey = 'inventoryHistory_' + currentUser;
+        const userId = App.getUserId();
+        const generalStorageKey = 'inventoryGeneral_' + userId;
+        const singerStorageKey = 'inventorySinger_' + userId;
+        const overlockStorageKey = 'inventoryOverlock_' + userId;
+        const historyStorageKey = 'inventoryHistory_' + userId;
 
         const defaultGeneralItems = [
             { name: 'أكياس', sizes: ['30', '10'], stocks: { '30': 0, '10': 0 }, selectedSize: '30', purchase: 0, price: 0, usage: 0, returns: 0 },
@@ -862,4 +873,9 @@
     </script>
 </body>
 </html>
+
+
+
+
+
 

@@ -1,10 +1,20 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <title>تسجيل الدخول - Zizo Solutions</title>
-    <link rel="stylesheet" href="app.css">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
+    <link rel="stylesheet" href="app.css?v=2.2">
 </head>
 <body class="auth-page">
     <div class="auth-card">
@@ -15,11 +25,11 @@
         </div>
         <form id="loginForm">
             <div class="form-group" style="margin-bottom: 14px;">
-                <label for="username">اسم المستخدم (بالإنجليزي فقط)</label>
+                <label for="username">اسم المستخدم</label>
                 <input type="text" id="username" placeholder="أدخل اسم المستخدم" required autocomplete="username">
             </div>
             <div class="form-group" style="margin-bottom: 20px;">
-                <label for="password">كلمة المرور (بالإنجليزي فقط)</label>
+                <label for="password">كلمة المرور</label>
                 <input type="password" id="password" placeholder="أدخل كلمة المرور" required autocomplete="current-password">
             </div>
             <button type="submit" class="btn btn-primary btn-block" id="loginBtn" style="padding: 11px;"></button>
@@ -33,14 +43,18 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.1"></script>
-    <script src="app.js?v=2.1"></script>
+    <script src="firebase-config.js?v=2.2"></script>
+    <script src="app.js?v=2.2"></script>
     <script>
-        document.getElementById('authLogoIcon').innerHTML = App.icon('factory', 26);
+        document.getElementById('authLogoIcon').innerHTML = '<span>Z</span>';
         document.getElementById('loginBtn').innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
 
-        // مسح أي جلسة قديمة محفوظة في localStorage فور فتح صفحة الدخول
-        localStorage.removeItem('isLoggedIn');
+        // إذا كان المستخدم مسجل دخول بالفعل، تحويله مباشرة إلى صفحة المخزن
+        const isAlreadyLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('isLoggedIn') === 'true';
+        const hasActiveUser = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+        if (isAlreadyLoggedIn && hasActiveUser) {
+            window.location.replace('dashboard.html');
+        }
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -57,6 +71,8 @@
                 return;
             }
 
+            const normalizedUser = user.toLowerCase();
+
             // فحص كلمة مرور المدير (الحالية أو المحدثة)
             let adminSavedPass = localStorage.getItem('adminPassword') || '200522004';
             if (typeof FirebaseDB !== 'undefined') {
@@ -67,13 +83,26 @@
                 }
             }
 
-            // حساب الإدارة الرئيسي (دخول مباشر)
-            if ((user === 'Zizo2312005' || user === 'admin') && (pass === adminSavedPass || pass === '200522004')) {
+            // حساب الإدارة الرئيسي بكل مرونة لضمان التوافق بين اللابتوب والموبايل (Admin / Zizo2312005 / zizo)
+            const isAdminMatch = normalizedUser === 'zizo2312005' || 
+                                 normalizedUser === 'admin' || 
+                                 normalizedUser === 'zizo' || 
+                                 normalizedUser === 'zizo_solutions' ||
+                                 normalizedUser.startsWith('zizo');
+            if (isAdminMatch && (pass === adminSavedPass || pass === '200522004')) {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', 'admin');
-                localStorage.removeItem('isLoggedIn');
+                sessionStorage.setItem('currentUserId', 'admin');
+                sessionStorage.setItem('currentCompany', '');
                 localStorage.setItem('currentUser', 'admin');
-                const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
+                localStorage.setItem('currentUserId', 'admin');
+                localStorage.setItem('currentCompany', '');
+                localStorage.setItem('isLoggedIn', 'true');
+
+                // ترحيل بيانات الأدمين (لو كانت مخزنة باسم مختلف)
+                await App.migrateUserData(user, 'admin');
+
+                const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
                 sessionStorage.removeItem('redirectAfterLogin');
                 window.location.href = target;
                 return;
@@ -91,7 +120,12 @@
                 usersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
             }
 
-            const foundUser = usersList.find(u => u.username === user && u.password === pass);
+            // البحث بحرية وعدم تحسس لحالة الحروف الإنجليزية أو البريد
+            const foundUser = usersList.find(u => 
+                ((u.username && u.username.toLowerCase().trim() === normalizedUser) ||
+                 (u.email && u.email.toLowerCase().trim() === normalizedUser)) &&
+                u.password === pass
+            );
 
             submitBtn.disabled = false;
             submitBtn.innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
@@ -105,11 +139,30 @@
                     alert("الحساب في انتظار موافقة الإدارة.");
                     return;
                 }
+
+                // ضمان ثبات الـ UID عبر جميع الأجهزة (لابتوب وتليفون) لتطابق مفاتيح البيانات السحابية
+                if (!foundUser.uid) {
+                    foundUser.uid = 'uid_' + foundUser.username.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                    if (typeof FirebaseDB !== 'undefined') {
+                        FirebaseDB.save('systemUsers', usersList);
+                    } else {
+                        localStorage.setItem('systemUsers', JSON.stringify(usersList));
+                    }
+                }
+
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('currentUser', foundUser.username);
-                localStorage.removeItem('isLoggedIn');
+                sessionStorage.setItem('currentUserId', foundUser.uid);
+                sessionStorage.setItem('currentCompany', foundUser.companyName || '');
                 localStorage.setItem('currentUser', foundUser.username);
-                const target = sessionStorage.getItem('redirectAfterLogin') || 'sales.html';
+                localStorage.setItem('currentUserId', foundUser.uid);
+                localStorage.setItem('currentCompany', foundUser.companyName || '');
+                localStorage.setItem('isLoggedIn', 'true');
+
+                // ترحيل بيانات المستخدم من المفاتيح القديمة (بالاسم) إلى الجديدة (بالـ UID)
+                await App.migrateUserData(foundUser.username, foundUser.uid);
+
+                const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
                 sessionStorage.removeItem('redirectAfterLogin');
                 window.location.href = target;
                 return;
@@ -120,3 +173,6 @@
     </script>
 </body>
 </html>
+
+
+
