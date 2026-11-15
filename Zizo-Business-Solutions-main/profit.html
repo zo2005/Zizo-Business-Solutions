@@ -20,7 +20,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=5.0">
+    <link rel="stylesheet" href="app.css?v=6.0">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -36,47 +36,24 @@
             -webkit-font-feature-settings: "locl" 0, "tnum" 1, "lnum" 1 !important;
             font-feature-settings: "locl" 0, "tnum" 1, "lnum" 1 !important;
         }
-        .period-shortcuts {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 14px;
-            align-items: center;
-        }
-        .period-shortcuts button {
-            font-size: 12px;
-            padding: 6px 13px;
-            border-radius: 6px;
-            cursor: pointer;
-            border: 1px solid var(--border);
-            background: var(--surface);
-            color: var(--text);
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-        .period-shortcuts button:hover, .period-shortcuts button.active {
-            background: var(--primary);
-            color: #fff;
-            border-color: var(--primary);
-        }
         .breakdown-box {
             background: var(--surface-hover);
             border-radius: 8px;
             padding: 12px 16px;
-            font-size: 12.5px;
+            font-size: 13px;
             color: var(--text);
-            margin-top: 12px;
-            line-height: 1.7;
+            margin-top: 14px;
+            line-height: 1.8;
             border: 1px solid var(--border);
         }
         .date-badge {
             display: inline-block;
             direction: ltr;
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 700;
             color: var(--primary);
             background: var(--primary-light);
-            padding: 2px 8px;
+            padding: 3px 8px;
             border-radius: 4px;
             margin-top: 4px;
         }
@@ -101,17 +78,17 @@
                 <!-- إحصائيات الفترة الحالية المختارة -->
                 <div class="metrics-grid">
                     <div class="metric-card info">
-                        <div class="title">إجمالي مبيعات الفترة المختارة</div>
+                        <div class="title">إجمالي المبيعات المحصلة بالفترة</div>
                         <div class="value" id="topPeriodSalesVal">0.00 ج.م</div>
                         <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodSalesCount">0 فاتورة</div>
                     </div>
                     <div class="metric-card danger">
-                        <div class="title">إجمالي مصروفات وتكاليف الفترة</div>
+                        <div class="title">إجمالي المصروفات والتكاليف بالفترة</div>
                         <div class="value" id="topPeriodExpensesVal">0.00 ج.م</div>
                         <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodExpensesBreakdown">سحب مخزن + رواتب + عامة</div>
                     </div>
                     <div class="metric-card success">
-                        <div class="title">صافي ربح الفترة المختارة</div>
+                        <div class="title">صافي الربح بالفترة</div>
                         <div class="value" id="topPeriodNetVal">0.00 ج.م</div>
                         <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodMargin">معدل صافي الربح: 0%</div>
                     </div>
@@ -119,54 +96,44 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title"><span id="formCardIcon"></span> تسجيل دورة أرباح جديدة من واقع السيستم</div>
-                        <button class="btn btn-secondary btn-sm" type="button" id="refreshBtn" onclick="refreshAndRecalculate()"></button>
-                    </div>
-
-                    <!-- أزرار الاختيار السريع للفترات -->
-                    <div class="period-shortcuts">
-                        <span style="font-size: 12px; font-weight: 700; margin-left: 6px;">اختيار سريع للفترة:</span>
-                        <button type="button" onclick="setQuickPeriod('nov2024_first')">1 إلى 15 نوفمبر 2024</button>
-                        <button type="button" onclick="setQuickPeriod('nov2024_all')">شهر نوفمبر 2024 كاملاً</button>
-                        <button type="button" onclick="setQuickPeriod('firstHalf')">النصف الأول من الشهر الحالي (1-15)</button>
-                        <button type="button" onclick="setQuickPeriod('secondHalf')">النصف الثاني (16-نهاية الشهر)</button>
-                        <button type="button" onclick="setQuickPeriod('allTime')" style="background: #004d40; color: #fff;">📊 حساب كل الفترات (جميع الفواتير والمخزن والرواتب)</button>
+                        <div class="card-title"><span id="formCardIcon"></span> تسجيل دورة أرباح جديدة</div>
+                        <button class="btn btn-secondary btn-sm" type="button" id="refreshBtn" onclick="calculatePeriodData()"></button>
                     </div>
 
                     <form id="profitForm">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="startDate">من تاريخ</label>
-                                <input type="date" id="startDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()">
+                                <input type="date" id="startDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()" required>
                                 <div><span class="date-badge" id="startDateBadge">--</span></div>
                             </div>
                             <div class="form-group">
                                 <label for="endDate">إلى تاريخ</label>
-                                <input type="date" id="endDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()">
+                                <input type="date" id="endDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()" required>
                                 <div><span class="date-badge" id="endDateBadge">--</span></div>
                             </div>
                             <div class="form-group">
                                 <label for="periodName">اسم / وصف الدورة</label>
-                                <input type="text" id="periodName" placeholder="مثال: دورة أرباح النصف الأول" required>
+                                <input type="text" id="periodName" placeholder="مثال: دورة من 01-11-2024 إلى 15-11-2024" required>
                             </div>
                             <div class="form-group">
-                                <label for="periodSales">إجمالي المبيعات بالفترة (تلقائي)</label>
+                                <label for="periodSales">إجمالي المبيعات (تلقائي بالفترة)</label>
                                 <input type="number" id="periodSales" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="purchaseCost">تكلفة سحوبات المخزن بالفترة (تلقائي)</label>
+                                <label for="purchaseCost">تكلفة سحوبات المخزن (تلقائي بالفترة)</label>
                                 <input type="number" id="purchaseCost" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="salariesCost">رواتب الموظفين بالفترة (تلقائي)</label>
+                                <label for="salariesCost">رواتب الموظفين (تلقائي بالفترة)</label>
                                 <input type="number" id="salariesCost" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="generalExpenses">مصروفات عامة إضافية (إيجار، مياه، كهرباء)</label>
+                                <label for="generalExpenses">مصروفات عامة إضافية (إيجار، مياه، إلخ)</label>
                                 <input type="number" id="generalExpenses" min="0" step="any" value="0" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="liveNetProfit">صافي الربح المحسوب للفترة</label>
+                                <label for="liveNetProfit">صافي الربح المتوقع للفترة</label>
                                 <input type="text" id="liveNetProfit" style="font-weight: 800; color: var(--primary); text-align: right;" dir="ltr" readonly placeholder="0.00 ج.م">
                             </div>
                         </div>
@@ -183,7 +150,7 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title"><span id="tableCardIcon"></span> سجل دورات الأرباح السابقة المحفوظة</div>
+                        <div class="card-title"><span id="tableCardIcon"></span> سجل دورات الأرباح السابقة</div>
                     </div>
                     <div class="table-responsive">
                         <table>
@@ -210,8 +177,8 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=5.0"></script>
-    <script src="app.js?v=5.0"></script>
+    <script src="firebase-config.js?v=6.0"></script>
+    <script src="app.js?v=6.0"></script>
     <script>
         App.requireAuth();
 
@@ -236,7 +203,6 @@
                 return `${y}-${m}-${d}`;
             }
 
-            // إذا كان التوقيت ملي ثانية timestamp
             if (typeof val === 'number' || (/^\d{12,14}$/.test(String(val).trim()))) {
                 const d = new Date(Number(val));
                 if (!isNaN(d.getTime())) {
@@ -283,11 +249,10 @@
             const cleanStart = normalizeDate(sDateStr);
             const cleanEnd = normalizeDate(eDateStr);
 
-            // إذا لم يحدد المستخدم بداية ونهاية (حساب كل الفترات) نعتبر السجل مشمولاً
             if (!cleanStart && !cleanEnd) return true;
 
             const cleanTarget = normalizeDate(targetDateStr);
-            if (!cleanTarget) return true; // إذا كان السجل بلا تاريخ نحسبه أيضاً لعدم تفويت مبيعات أو مصاريف
+            if (!cleanTarget) return true;
 
             const minDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanStart : cleanEnd) : (cleanStart || cleanEnd);
             const maxDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanEnd : cleanStart) : (cleanEnd || cleanStart);
@@ -313,42 +278,6 @@
         }
 
         /**
-         * تحديد الفترات السريعة
-         */
-        function setQuickPeriod(type) {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth() + 1;
-            const startElem = document.getElementById('startDate');
-            const endElem = document.getElementById('endDate');
-            if (!startElem || !endElem) return;
-
-            let sDate = '', eDate = '';
-
-            if (type === 'nov2024_first') {
-                sDate = '2024-11-01';
-                eDate = '2024-11-15';
-            } else if (type === 'nov2024_all') {
-                sDate = '2024-11-01';
-                eDate = '2024-11-30';
-            } else if (type === 'firstHalf') {
-                sDate = `${year}-${String(month).padStart(2, '0')}-01`;
-                eDate = `${year}-${String(month).padStart(2, '0')}-15`;
-            } else if (type === 'secondHalf') {
-                sDate = `${year}-${String(month).padStart(2, '0')}-16`;
-                const lastDay = new Date(year, month, 0).getDate();
-                eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-            } else if (type === 'allTime') {
-                sDate = '';
-                eDate = '';
-            }
-
-            startElem.value = sDate;
-            endElem.value = eDate;
-            calculatePeriodData();
-        }
-
-        /**
          * فحص السيستم تلقائياً لاقتراح أحدث فترة بها بيانات فعلية
          */
         function initDefaultDates(force = false) {
@@ -357,7 +286,6 @@
             if (!startElem || !endElem) return;
             if (!force && startElem.value && endElem.value) return;
 
-            // فحص التواريخ الموجودة فعلياً في المبيعات والرواتب والمخزن
             const sales = getAllSourceData('salesList_', currentSales);
             const history = getAllSourceData('inventoryHistory_', currentHistory);
             const salaries = getAllSourceData('salariesList_', currentSalaries);
@@ -459,16 +387,14 @@
             // تحديث بادج التاريخ بالأرقام الإنجليزية الواضحة
             const sBadge = document.getElementById('startDateBadge');
             const eBadge = document.getElementById('endDateBadge');
-            if (sBadge) sBadge.textContent = startVal ? formatDisplayDate(startVal) : 'غير محدد (من البداية)';
-            if (eBadge) eBadge.textContent = endVal ? formatDisplayDate(endVal) : 'غير محدد (حتى الآن)';
+            if (sBadge) sBadge.textContent = startVal ? formatDisplayDate(startVal) : '--';
+            if (eBadge) eBadge.textContent = endVal ? formatDisplayDate(endVal) : '--';
 
             // اسم الدورة المقترح
             const periodField = document.getElementById('periodName');
-            if (periodField && (!periodField.value || periodField.value.startsWith('دورة من') || periodField.value.startsWith('فترة من') || periodField.value.includes('كل الفترات'))) {
+            if (periodField && (!periodField.value || periodField.value.startsWith('دورة من') || periodField.value.startsWith('فترة من'))) {
                 if (startVal && endVal) {
                     periodField.value = `دورة من ${formatDisplayDate(startVal)} إلى ${formatDisplayDate(endVal)}`;
-                } else {
-                    periodField.value = `حساب شامل لجميع الفترات السابقة والحالية`;
                 }
             }
 
@@ -511,6 +437,7 @@
             const overlockInv = getAllSourceData('inventoryOverlock_', currentOverlockInv);
             const historyList = getAllSourceData('inventoryHistory_', currentHistory);
 
+            // إنشاء خريطة أسعار المنتجات في المخزن
             const itemPriceMap = {};
             generalInv.forEach(i => {
                 if (i.name) {
@@ -540,8 +467,8 @@
 
             historyList.forEach(hist => {
                 const typeStr = (hist.type || '').trim();
-                // عمليات السحب من المخزن
-                if (typeStr === 'سحب' || typeStr.includes('سحب')) {
+                // عمليات السحب أو الاستهلاك أو الصرف من المخزن
+                if (typeStr === 'سحب' || typeStr.includes('سحب') || typeStr.includes('صرف') || typeStr.includes('استهلاك')) {
                     const histDate = hist.date || (hist.id && hist.id > 1000000000000 ? new Date(hist.id) : null);
                     if (isDateInPeriod(histDate, startVal, endVal)) {
                         const itemName = (hist.item || '').trim();
@@ -560,7 +487,8 @@
                         }
                         const qty = parseFloat(App.toEnglishDigits(hist.qty)) || 0;
                         const directTotal = parseFloat(App.toEnglishDigits(hist.totalCost || hist.totalPrice || 0)) || 0;
-                        totalWithdrawCost += (directTotal > 0 ? directTotal : (qty * unitPrice));
+                        const finalCost = (directTotal > 0 ? directTotal : (qty * unitPrice));
+                        totalWithdrawCost += finalCost;
                         withdrawCount++;
                     }
                 }
@@ -592,7 +520,7 @@
             // صندوق توضيح تفاصيل الحساب
             const box = document.getElementById('calcDetailsBox');
             if (box) {
-                const dateSpan = startVal && endVal ? `من <strong>${formatDisplayDate(startVal)}</strong> إلى <strong>${formatDisplayDate(endVal)}</strong>` : `<strong>لكل الفترات المسجلة</strong>`;
+                const dateSpan = startVal && endVal ? `من <strong>${formatDisplayDate(startVal)}</strong> إلى <strong>${formatDisplayDate(endVal)}</strong>` : `الفترة المحددة`;
                 box.innerHTML = `
                     <strong>📊 نتيجة الحساب التلقائي (${dateSpan}):</strong><br>
                     • فواتير المبيعات: تم العثور على <strong>${salesCount}</strong> فاتورة بإجمالي: <strong>${totalPeriodSales.toFixed(2)} ج.م</strong><br>
@@ -602,10 +530,6 @@
             }
 
             updateLiveNetProfit();
-        }
-
-        function refreshAndRecalculate() {
-            calculatePeriodData();
         }
 
         function updateLiveNetProfit() {
@@ -708,7 +632,7 @@
             document.getElementById('pageHeaderIcon').innerHTML = App.icon('chart', 20);
             document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
             document.getElementById('formCardIcon').innerHTML = App.icon('edit', 16);
-            document.getElementById('refreshBtn').innerHTML = App.icon('reset', 13) + ' <span>تحديث من السيستم</span>';
+            document.getElementById('refreshBtn').innerHTML = App.icon('reset', 13) + ' <span>تحديث تلقائي</span>';
             document.getElementById('tableCardIcon').innerHTML = App.icon('receipt', 16);
             document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تسجيل دورة الأرباح</span>';
 
