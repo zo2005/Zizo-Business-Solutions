@@ -20,7 +20,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=6.0">
+    <link rel="stylesheet" href="app.css?v=7.0">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -177,8 +177,8 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=6.0"></script>
-    <script src="app.js?v=6.0"></script>
+    <script src="firebase-config.js?v=7.0"></script>
+    <script src="app.js?v=7.0"></script>
     <script>
         App.requireAuth();
 
@@ -252,7 +252,8 @@
             if (!cleanStart && !cleanEnd) return true;
 
             const cleanTarget = normalizeDate(targetDateStr);
-            if (!cleanTarget) return true;
+            // إذا كان السجل بلا تاريخ محدد وتوجد فترة زمنية محددة لا ندرجه تلقائياً لعدم حساب قيم غير صحيحة
+            if (!cleanTarget) return false;
 
             const minDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanStart : cleanEnd) : (cleanStart || cleanEnd);
             const maxDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanEnd : cleanStart) : (cleanEnd || cleanStart);
@@ -278,7 +279,7 @@
         }
 
         /**
-         * فحص السيستم تلقائياً لاقتراح أحدث فترة بها بيانات فعلية
+         * فحص السيستم لاقتراح التاريخ
          */
         function initDefaultDates(force = false) {
             const startElem = document.getElementById('startDate');
@@ -286,43 +287,36 @@
             if (!startElem || !endElem) return;
             if (!force && startElem.value && endElem.value) return;
 
-            const sales = getAllSourceData('salesList_', currentSales);
-            const history = getAllSourceData('inventoryHistory_', currentHistory);
-            const salaries = getAllSourceData('salariesList_', currentSalaries);
+            const currentActiveHistory = getCurrentActiveHistory();
+            const activeWithdrawals = currentActiveHistory.filter(h => isWithdrawalRecord(h));
 
-            let allDates = [];
-            sales.forEach(s => {
-                const d = normalizeDate(s.deliveryDate || s.date || s.invoiceDate || (s.id && s.id > 1000000000000 ? new Date(s.id) : null));
-                if (d) allDates.push(d);
-            });
-            history.forEach(h => {
-                const d = normalizeDate(h.date || (h.id && h.id > 1000000000000 ? new Date(h.id) : null));
-                if (d) allDates.push(d);
-            });
-            salaries.forEach(sal => {
-                const d = normalizeDate(sal.date || sal.salaryDate || (sal.id && sal.id > 1000000000000 ? new Date(sal.id) : null));
-                if (d) allDates.push(d);
-            });
-
-            if (allDates.length > 0) {
-                allDates.sort();
-                const latest = allDates[allDates.length - 1]; // e.g. "2024-11-15"
-                const parts = latest.split('-');
-                const y = parts[0];
-                const m = parts[1];
-                const dayNum = parseInt(parts[2], 10);
-                if (dayNum <= 15) {
-                    startElem.value = `${y}-${m}-01`;
-                    endElem.value = `${y}-${m}-15`;
-                } else {
-                    startElem.value = `${y}-${m}-16`;
-                    const lastDay = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
-                    endElem.value = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+            if (activeWithdrawals.length > 0) {
+                let dates = [];
+                activeWithdrawals.forEach(h => {
+                    const d = normalizeDate(h.date || (h.id && h.id > 1000000000000 ? new Date(h.id) : null));
+                    if (d) dates.push(d);
+                });
+                if (dates.length > 0) {
+                    dates.sort();
+                    const latest = dates[dates.length - 1];
+                    const parts = latest.split('-');
+                    const y = parts[0];
+                    const m = parts[1];
+                    const dayNum = parseInt(parts[2], 10);
+                    if (dayNum <= 15) {
+                        startElem.value = `${y}-${m}-01`;
+                        endElem.value = `${y}-${m}-15`;
+                    } else {
+                        startElem.value = `${y}-${m}-16`;
+                        const lastDay = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
+                        endElem.value = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+                    }
+                    return;
                 }
-            } else {
-                startElem.value = '2024-11-01';
-                endElem.value = '2024-11-15';
             }
+
+            startElem.value = '2024-11-01';
+            endElem.value = '2024-11-15';
         }
 
         function isSameRecord(a, b) {
@@ -350,27 +344,26 @@
                 });
             }
 
-            try {
-                const base = prefix.replace(/_$/, '');
-                for (let i = 0; i < localStorage.length; i++) {
-                    const k = localStorage.key(i);
-                    if (k && (k.startsWith(prefix) || k.startsWith(base))) {
-                        const raw = localStorage.getItem(k);
-                        if (raw) {
-                            const parsed = JSON.parse(raw);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                                parsed.forEach(item => {
-                                    if (!result.some(x => isSameRecord(x, item))) {
-                                        result.push(item);
-                                    }
-                                });
-                            }
-                        }
-                    }
-                }
-            } catch (e) {}
-
             return result;
+        }
+
+        /**
+         * جلب سجل المخزن النشط حالياً كما يظهر تماماً في صفحة المخزن dashboard
+         */
+        function getCurrentActiveHistory() {
+            if (Array.isArray(currentHistory) && currentHistory.length > 0) {
+                return currentHistory;
+            }
+            return App.loadInitialData('inventoryHistory_', []);
+        }
+
+        /**
+         * فحص هل حركة المخزن هي عملية سحب
+         */
+        function isWithdrawalRecord(hist) {
+            if (!hist) return false;
+            const t = (hist.type || '').trim();
+            return t === 'سحب' || t === 'صرف' || t === 'استهلاك';
         }
 
         /**
@@ -431,13 +424,15 @@
                 }
             });
 
-            // 2. حساب تكلفة سحوبات المخزن في الفترة المحددة
+            // 2. حساب تكلفة سحوبات المخزن في الفترة المحددة بدقة 100%
+            // قراءة سجل حركات المخزن الفعلي المباشر
+            const activeHistory = getCurrentActiveHistory();
+
+            // إعداد أسعار أصناف المخزن للرجوع إليها إن لم يكن مسجلاً في الحركة
             const generalInv = getAllSourceData('inventoryGeneral_', currentGeneralInv);
             const singerInv = getAllSourceData('inventorySinger_', currentSingerInv);
             const overlockInv = getAllSourceData('inventoryOverlock_', currentOverlockInv);
-            const historyList = getAllSourceData('inventoryHistory_', currentHistory);
 
-            // إنشاء خريطة أسعار المنتجات في المخزن
             const itemPriceMap = {};
             generalInv.forEach(i => {
                 if (i.name) {
@@ -451,12 +446,10 @@
                     }
                 }
             });
-
             singerInv.forEach(i => {
                 const prc = parseFloat(App.toEnglishDigits(i.price)) || 0;
                 if (i.code) itemPriceMap[`بكر سنجر كود ${i.code}`] = prc;
             });
-
             overlockInv.forEach(i => {
                 const prc = parseFloat(App.toEnglishDigits(i.price)) || 0;
                 if (i.color) itemPriceMap[`بكر أوفر ${i.color}`] = prc;
@@ -465,34 +458,36 @@
             let totalWithdrawCost = 0;
             let withdrawCount = 0;
 
-            historyList.forEach(hist => {
-                const typeStr = (hist.type || '').trim();
-                // عمليات السحب أو الاستهلاك أو الصرف من المخزن
-                if (typeStr === 'سحب' || typeStr.includes('سحب') || typeStr.includes('صرف') || typeStr.includes('استهلاك')) {
-                    const histDate = hist.date || (hist.id && hist.id > 1000000000000 ? new Date(hist.id) : null);
-                    if (isDateInPeriod(histDate, startVal, endVal)) {
-                        const itemName = (hist.item || '').trim();
-                        let unitPrice = parseFloat(App.toEnglishDigits(hist.price || hist.unitPrice || 0)) || itemPriceMap[itemName] || 0;
-                        if (!unitPrice) {
-                            const baseName = itemName.split('(')[0].trim();
-                            unitPrice = itemPriceMap[baseName] || 0;
-                        }
-                        if (!unitPrice) {
-                            for (const k in itemPriceMap) {
-                                if (itemName.includes(k) || k.includes(itemName)) {
-                                    unitPrice = itemPriceMap[k];
-                                    break;
+            // إذا كان سجل السحوبات فارغاً، تظل القيمة 0.00 تماماً
+            if (Array.isArray(activeHistory) && activeHistory.length > 0) {
+                activeHistory.forEach(hist => {
+                    if (isWithdrawalRecord(hist)) {
+                        const histDate = hist.date || (hist.id && hist.id > 1000000000000 ? new Date(hist.id) : null);
+                        // فحص هل تاريخ السحب يقع بين بداية ونهاية الفترة المختارة حصراً
+                        if (histDate && isDateInPeriod(histDate, startVal, endVal)) {
+                            const itemName = (hist.item || '').trim();
+                            let unitPrice = parseFloat(App.toEnglishDigits(hist.price || hist.unitPrice || 0)) || itemPriceMap[itemName] || 0;
+                            if (!unitPrice) {
+                                const baseName = itemName.split('(')[0].trim();
+                                unitPrice = itemPriceMap[baseName] || 0;
+                            }
+                            if (!unitPrice) {
+                                for (const k in itemPriceMap) {
+                                    if (itemName.includes(k) || k.includes(itemName)) {
+                                        unitPrice = itemPriceMap[k];
+                                        break;
+                                    }
                                 }
                             }
+                            const qty = parseFloat(App.toEnglishDigits(hist.qty)) || 0;
+                            const directTotal = parseFloat(App.toEnglishDigits(hist.totalCost || hist.totalPrice || 0)) || 0;
+                            const finalCost = (directTotal > 0 ? directTotal : (qty * unitPrice));
+                            totalWithdrawCost += finalCost;
+                            withdrawCount++;
                         }
-                        const qty = parseFloat(App.toEnglishDigits(hist.qty)) || 0;
-                        const directTotal = parseFloat(App.toEnglishDigits(hist.totalCost || hist.totalPrice || 0)) || 0;
-                        const finalCost = (directTotal > 0 ? directTotal : (qty * unitPrice));
-                        totalWithdrawCost += finalCost;
-                        withdrawCount++;
                     }
-                }
-            });
+                });
+            }
 
             // 3. حساب رواتب الموظفين المصروفة بالفترة
             const salariesList = getAllSourceData('salariesList_', currentSalaries);
@@ -522,9 +517,9 @@
             if (box) {
                 const dateSpan = startVal && endVal ? `من <strong>${formatDisplayDate(startVal)}</strong> إلى <strong>${formatDisplayDate(endVal)}</strong>` : `الفترة المحددة`;
                 box.innerHTML = `
-                    <strong>📊 نتيجة الحساب التلقائي (${dateSpan}):</strong><br>
+                    <strong>📊 تفاصيل دورة الفترة (${dateSpan}):</strong><br>
                     • فواتير المبيعات: تم العثور على <strong>${salesCount}</strong> فاتورة بإجمالي: <strong>${totalPeriodSales.toFixed(2)} ج.م</strong><br>
-                    • سحوبات المخزن: تم العثور على <strong>${withdrawCount}</strong> عملية سحب بإجمالي تكلفة: <strong>${totalWithdrawCost.toFixed(2)} ج.م</strong><br>
+                    • سحوبات المخزن: تم العثور على <strong>${withdrawCount}</strong> عملية سحب مسجلة في السجل بإجمالي تكلفة: <strong>${totalWithdrawCost.toFixed(2)} ج.م</strong><br>
                     • رواتب الموظفين: تم العثور على <strong>${salariesCount}</strong> راتب منصرف بإجمالي: <strong>${totalPeriodSalaries.toFixed(2)} ج.م</strong>
                 `;
             }
@@ -657,7 +652,7 @@
                 calculatePeriodData();
             }, []);
             App.subscribeData('inventoryHistory_', (data) => {
-                if (Array.isArray(data) && data.length > 0) currentHistory = data;
+                if (Array.isArray(data)) currentHistory = data;
                 calculatePeriodData();
             }, []);
             App.subscribeData('inventoryGeneral_', (data) => {
