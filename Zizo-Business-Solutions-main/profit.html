@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com; frame-ancestors 'none';">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <title>حساب الأرباح - Zizo Solutions</title>
@@ -17,7 +20,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=4.0">
+    <link rel="stylesheet" href="app.css?v=5.0">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -38,10 +41,11 @@
             gap: 8px;
             flex-wrap: wrap;
             margin-bottom: 14px;
+            align-items: center;
         }
         .period-shortcuts button {
             font-size: 12px;
-            padding: 5px 12px;
+            padding: 6px 13px;
             border-radius: 6px;
             cursor: pointer;
             border: 1px solid var(--border);
@@ -58,11 +62,23 @@
         .breakdown-box {
             background: var(--surface-hover);
             border-radius: 8px;
-            padding: 10px 14px;
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 10px;
-            line-height: 1.6;
+            padding: 12px 16px;
+            font-size: 12.5px;
+            color: var(--text);
+            margin-top: 12px;
+            line-height: 1.7;
+            border: 1px solid var(--border);
+        }
+        .date-badge {
+            display: inline-block;
+            direction: ltr;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary);
+            background: var(--primary-light);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
         }
     </style>
 </head>
@@ -97,7 +113,7 @@
                     <div class="metric-card success">
                         <div class="title">صافي ربح الفترة المختارة</div>
                         <div class="value" id="topPeriodNetVal">0.00 ج.م</div>
-                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodMargin">معدل الربح: 0%</div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodMargin">معدل صافي الربح: 0%</div>
                     </div>
                 </div>
 
@@ -109,30 +125,32 @@
 
                     <!-- أزرار الاختيار السريع للفترات -->
                     <div class="period-shortcuts">
-                        <span style="font-size: 12px; font-weight: 700; align-self: center; margin-left: 6px;">فترات سريعة:</span>
-                        <button type="button" onclick="setQuickPeriod('firstHalf')">النصف الأول (1 إلى 15)</button>
-                        <button type="button" onclick="setQuickPeriod('secondHalf')">النصف الثاني (16 إلى نهاية الشهر)</button>
-                        <button type="button" onclick="setQuickPeriod('thisMonth')">الشهر الحالي كاملاً</button>
-                        <button type="button" onclick="setQuickPeriod('lastMonth')">الشهر الماضي</button>
-                        <button type="button" onclick="setQuickPeriod('allTime')">كل الفترات (من أول يوم للآن)</button>
+                        <span style="font-size: 12px; font-weight: 700; margin-left: 6px;">اختيار سريع للفترة:</span>
+                        <button type="button" onclick="setQuickPeriod('nov2024_first')">1 إلى 15 نوفمبر 2024</button>
+                        <button type="button" onclick="setQuickPeriod('nov2024_all')">شهر نوفمبر 2024 كاملاً</button>
+                        <button type="button" onclick="setQuickPeriod('firstHalf')">النصف الأول من الشهر الحالي (1-15)</button>
+                        <button type="button" onclick="setQuickPeriod('secondHalf')">النصف الثاني (16-نهاية الشهر)</button>
+                        <button type="button" onclick="setQuickPeriod('allTime')" style="background: #004d40; color: #fff;">📊 حساب كل الفترات (جميع الفواتير والمخزن والرواتب)</button>
                     </div>
 
                     <form id="profitForm">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="startDate">من تاريخ</label>
-                                <input type="date" id="startDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()" required>
+                                <input type="date" id="startDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()">
+                                <div><span class="date-badge" id="startDateBadge">--</span></div>
                             </div>
                             <div class="form-group">
                                 <label for="endDate">إلى تاريخ</label>
-                                <input type="date" id="endDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()" required>
+                                <input type="date" id="endDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()">
+                                <div><span class="date-badge" id="endDateBadge">--</span></div>
                             </div>
                             <div class="form-group">
-                                <label for="periodName">اسم / وصف الفترة</label>
-                                <input type="text" id="periodName" placeholder="مثال: دورة أرباح النصف الأول من الشهر" required>
+                                <label for="periodName">اسم / وصف الدورة</label>
+                                <input type="text" id="periodName" placeholder="مثال: دورة أرباح النصف الأول" required>
                             </div>
                             <div class="form-group">
-                                <label for="periodSales">إجمالي المبيعات المحصلة بالفترة (تلقائي)</label>
+                                <label for="periodSales">إجمالي المبيعات بالفترة (تلقائي)</label>
                                 <input type="number" id="periodSales" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
@@ -144,7 +162,7 @@
                                 <input type="number" id="salariesCost" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="generalExpenses">مصروفات عامة إضافية (إيجار، مياه، إلخ)</label>
+                                <label for="generalExpenses">مصروفات عامة إضافية (إيجار، مياه، كهرباء)</label>
                                 <input type="number" id="generalExpenses" min="0" step="any" value="0" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
@@ -192,8 +210,8 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=4.0"></script>
-    <script src="app.js?v=4.0"></script>
+    <script src="firebase-config.js?v=5.0"></script>
+    <script src="app.js?v=5.0"></script>
     <script>
         App.requireAuth();
 
@@ -236,12 +254,10 @@
 
             let y, m, d;
             if (nums[0].length === 4) {
-                // 2026-11-15 أو 2026/11/15
                 y = parseInt(nums[0], 10);
                 m = parseInt(nums[1], 10);
                 d = parseInt(nums[2], 10);
             } else if (nums[2].length === 4) {
-                // 15-11-2026 أو 15/11/2026
                 y = parseInt(nums[2], 10);
                 const p0 = parseInt(nums[0], 10);
                 const p1 = parseInt(nums[1], 10);
@@ -264,13 +280,14 @@
          * التحقق هل التاريخ يقع داخل الفترة
          */
         function isDateInPeriod(targetDateStr, sDateStr, eDateStr) {
-            const cleanTarget = normalizeDate(targetDateStr);
             const cleanStart = normalizeDate(sDateStr);
             const cleanEnd = normalizeDate(eDateStr);
 
-            // إذا لم يتم تحديد بداية ونهاية نعتبره داخل الفترة
+            // إذا لم يحدد المستخدم بداية ونهاية (حساب كل الفترات) نعتبر السجل مشمولاً
             if (!cleanStart && !cleanEnd) return true;
-            if (!cleanTarget) return true; // إذا لم يكن هناك تاريخ مسجل للسجل ندرجه لعدم تفويت مبيعات
+
+            const cleanTarget = normalizeDate(targetDateStr);
+            if (!cleanTarget) return true; // إذا كان السجل بلا تاريخ نحسبه أيضاً لعدم تفويت مبيعات أو مصاريف
 
             const minDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanStart : cleanEnd) : (cleanStart || cleanEnd);
             const maxDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanEnd : cleanStart) : (cleanEnd || cleanStart);
@@ -306,28 +323,24 @@
             const endElem = document.getElementById('endDate');
             if (!startElem || !endElem) return;
 
-            let sDate, eDate;
+            let sDate = '', eDate = '';
 
-            if (type === 'firstHalf') {
+            if (type === 'nov2024_first') {
+                sDate = '2024-11-01';
+                eDate = '2024-11-15';
+            } else if (type === 'nov2024_all') {
+                sDate = '2024-11-01';
+                eDate = '2024-11-30';
+            } else if (type === 'firstHalf') {
                 sDate = `${year}-${String(month).padStart(2, '0')}-01`;
                 eDate = `${year}-${String(month).padStart(2, '0')}-15`;
             } else if (type === 'secondHalf') {
                 sDate = `${year}-${String(month).padStart(2, '0')}-16`;
                 const lastDay = new Date(year, month, 0).getDate();
                 eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-            } else if (type === 'thisMonth') {
-                sDate = `${year}-${String(month).padStart(2, '0')}-01`;
-                const lastDay = new Date(year, month, 0).getDate();
-                eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-            } else if (type === 'lastMonth') {
-                const prevM = month === 1 ? 12 : month - 1;
-                const prevY = month === 1 ? year - 1 : year;
-                sDate = `${prevY}-${String(prevM).padStart(2, '0')}-01`;
-                const lastDay = new Date(prevY, prevM, 0).getDate();
-                eDate = `${prevY}-${String(prevM).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
             } else if (type === 'allTime') {
-                sDate = `2024-01-01`;
-                eDate = `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                sDate = '';
+                eDate = '';
             }
 
             startElem.value = sDate;
@@ -335,29 +348,53 @@
             calculatePeriodData();
         }
 
+        /**
+         * فحص السيستم تلقائياً لاقتراح أحدث فترة بها بيانات فعلية
+         */
         function initDefaultDates(force = false) {
             const startElem = document.getElementById('startDate');
             const endElem = document.getElementById('endDate');
             if (!startElem || !endElem) return;
             if (!force && startElem.value && endElem.value) return;
 
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth() + 1;
-            const day = today.getDate();
+            // فحص التواريخ الموجودة فعلياً في المبيعات والرواتب والمخزن
+            const sales = getAllSourceData('salesList_', currentSales);
+            const history = getAllSourceData('inventoryHistory_', currentHistory);
+            const salaries = getAllSourceData('salariesList_', currentSalaries);
 
-            let sDate, eDate;
-            if (day <= 15) {
-                sDate = `${year}-${String(month).padStart(2, '0')}-01`;
-                eDate = `${year}-${String(month).padStart(2, '0')}-15`;
+            let allDates = [];
+            sales.forEach(s => {
+                const d = normalizeDate(s.deliveryDate || s.date || s.invoiceDate || (s.id && s.id > 1000000000000 ? new Date(s.id) : null));
+                if (d) allDates.push(d);
+            });
+            history.forEach(h => {
+                const d = normalizeDate(h.date || (h.id && h.id > 1000000000000 ? new Date(h.id) : null));
+                if (d) allDates.push(d);
+            });
+            salaries.forEach(sal => {
+                const d = normalizeDate(sal.date || sal.salaryDate || (sal.id && sal.id > 1000000000000 ? new Date(sal.id) : null));
+                if (d) allDates.push(d);
+            });
+
+            if (allDates.length > 0) {
+                allDates.sort();
+                const latest = allDates[allDates.length - 1]; // e.g. "2024-11-15"
+                const parts = latest.split('-');
+                const y = parts[0];
+                const m = parts[1];
+                const dayNum = parseInt(parts[2], 10);
+                if (dayNum <= 15) {
+                    startElem.value = `${y}-${m}-01`;
+                    endElem.value = `${y}-${m}-15`;
+                } else {
+                    startElem.value = `${y}-${m}-16`;
+                    const lastDay = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
+                    endElem.value = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+                }
             } else {
-                sDate = `${year}-${String(month).padStart(2, '0')}-16`;
-                const lastDay = new Date(year, month, 0).getDate();
-                eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                startElem.value = '2024-11-01';
+                endElem.value = '2024-11-15';
             }
-
-            startElem.value = sDate;
-            endElem.value = eDate;
         }
 
         function isSameRecord(a, b) {
@@ -416,18 +453,23 @@
             const endElem = document.getElementById('endDate');
             if (!startElem || !endElem) return;
 
-            if (!startElem.value || !endElem.value) {
-                initDefaultDates();
-            }
-
             const startVal = normalizeDate(startElem.value);
             const endVal = normalizeDate(endElem.value);
-            if (!startVal || !endVal) return;
 
-            // اسم الفترة المقترح
+            // تحديث بادج التاريخ بالأرقام الإنجليزية الواضحة
+            const sBadge = document.getElementById('startDateBadge');
+            const eBadge = document.getElementById('endDateBadge');
+            if (sBadge) sBadge.textContent = startVal ? formatDisplayDate(startVal) : 'غير محدد (من البداية)';
+            if (eBadge) eBadge.textContent = endVal ? formatDisplayDate(endVal) : 'غير محدد (حتى الآن)';
+
+            // اسم الدورة المقترح
             const periodField = document.getElementById('periodName');
-            if (periodField && (!periodField.value || periodField.value.startsWith('دورة من') || periodField.value.startsWith('فترة من'))) {
-                periodField.value = `دورة من ${formatDisplayDate(startVal)} إلى ${formatDisplayDate(endVal)}`;
+            if (periodField && (!periodField.value || periodField.value.startsWith('دورة من') || periodField.value.startsWith('فترة من') || periodField.value.includes('كل الفترات'))) {
+                if (startVal && endVal) {
+                    periodField.value = `دورة من ${formatDisplayDate(startVal)} إلى ${formatDisplayDate(endVal)}`;
+                } else {
+                    periodField.value = `حساب شامل لجميع الفترات السابقة والحالية`;
+                }
             }
 
             // 1. حساب كل المبيعات والفواتير المسجلة في الفترة
@@ -498,7 +540,7 @@
 
             historyList.forEach(hist => {
                 const typeStr = (hist.type || '').trim();
-                // حساب عمليات السحب من المخزن
+                // عمليات السحب من المخزن
                 if (typeStr === 'سحب' || typeStr.includes('سحب')) {
                     const histDate = hist.date || (hist.id && hist.id > 1000000000000 ? new Date(hist.id) : null);
                     if (isDateInPeriod(histDate, startVal, endVal)) {
@@ -550,11 +592,12 @@
             // صندوق توضيح تفاصيل الحساب
             const box = document.getElementById('calcDetailsBox');
             if (box) {
+                const dateSpan = startVal && endVal ? `من <strong>${formatDisplayDate(startVal)}</strong> إلى <strong>${formatDisplayDate(endVal)}</strong>` : `<strong>لكل الفترات المسجلة</strong>`;
                 box.innerHTML = `
-                    <strong>📊 تفاصيل دورة الفترة (${formatDisplayDate(startVal)} إلى ${formatDisplayDate(endVal)}):</strong><br>
-                    • تم العثور على <strong>${salesCount}</strong> فاتورة مبيعات بإجمالي: <strong>${totalPeriodSales.toFixed(2)} ج.م</strong><br>
-                    • تم العثور على <strong>${withdrawCount}</strong> عملية سحب مخزن بإجمالي تكلفة: <strong>${totalWithdrawCost.toFixed(2)} ج.م</strong><br>
-                    • تم العثور على <strong>${salariesCount}</strong> راتب موظف مصروف بإجمالي: <strong>${totalPeriodSalaries.toFixed(2)} ج.م</strong>
+                    <strong>📊 نتيجة الحساب التلقائي (${dateSpan}):</strong><br>
+                    • فواتير المبيعات: تم العثور على <strong>${salesCount}</strong> فاتورة بإجمالي: <strong>${totalPeriodSales.toFixed(2)} ج.م</strong><br>
+                    • سحوبات المخزن: تم العثور على <strong>${withdrawCount}</strong> عملية سحب بإجمالي تكلفة: <strong>${totalWithdrawCost.toFixed(2)} ج.م</strong><br>
+                    • رواتب الموظفين: تم العثور على <strong>${salariesCount}</strong> راتب منصرف بإجمالي: <strong>${totalPeriodSalaries.toFixed(2)} ج.م</strong>
                 `;
             }
 
