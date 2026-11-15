@@ -34,6 +34,29 @@ const App = {
         return `<svg class="app-icon ${className}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svgContent}</svg>`;
     },
 
+    /**
+     * تحويل أي أرقام هندية/عربية إلى أرقام إنجليزية (0-9)
+     */
+    toEnglishDigits(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/[\u200E\u200F\u202A-\u202E\uFEFF]/g, '')
+            .replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+            .replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]);
+    },
+
+    /**
+     * تنسيق التاريخ بالأرقام الإنجليزية (YYYY-MM-DD)
+     */
+    formatDate(date = new Date()) {
+        const d = (date instanceof Date) ? date : new Date(date);
+        if (isNaN(d.getTime())) return '';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    },
+
     escapeHtml(str) {
         if (str === null || str === undefined) return '';
         return String(str)
@@ -109,6 +132,11 @@ const App = {
                 });
             }
         }
+
+        const barePrefix = prefix.replace(/_$/, '');
+        if (!keys.includes(barePrefix)) keys.push(barePrefix);
+        if (!keys.includes(prefix)) keys.push(prefix);
+
         return keys;
     },
 
@@ -128,6 +156,24 @@ const App = {
                 }
             } catch (e) {}
         }
+
+        // فحص شامل لجميع مفاتيح localStorage لضمان عدم ضياع أي بيانات
+        try {
+            const basePrefix = prefix.replace(/_$/, '');
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith(prefix) || key.startsWith(basePrefix))) {
+                    const raw = localStorage.getItem(key);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed) ? parsed.length > 0 : (parsed !== null && parsed !== undefined)) {
+                            return parsed;
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+
         return defaultValue;
     },
 
@@ -197,30 +243,25 @@ const App = {
     },
 
     /**
-     * ترحيل تلقائي لبيانات المستخدم من المفاتيح القديمة (بالاسم) إلى المفاتيح الجديدة (بالـ uid)
-     * بيشتغل مرة واحدة بس لكل مستخدم بعد أول تسجيل دخول بعد التحديث
+     * ترحيل تلقائي سريع لبيانات المستخدم من المفاتيح القديمة (بالاسم) إلى المفاتيح الجديدة (بالـ uid)
+     * بيشتغل فوري محلياً دون أي تأخير أو تعطيل لتسجيل الدخول
      */
     async migrateUserData(username, uid) {
         const migrationFlag = 'dataMigrated_' + uid + '_' + (username || '');
         if (localStorage.getItem(migrationFlag) === 'done') return;
 
-        console.log(`🔄 بدء ترحيل ومزامنة بيانات المستخدم [${username}] إلى ID [${uid}]...`);
         let migratedCount = 0;
-
-        // قائمة المفاتيح القديمة المحتملة
         const oldAliases = [username];
         if (this.isAdmin()) {
             oldAliases.push('Zizo2312005', 'zizo2312005', 'zizo', 'zizo_solutions', 'uid_zizo2312005');
         }
 
+        // 1. ترحيل سريع محلياً في جزء من الملي ثانية
         for (const prefix of this._userDataKeys) {
             const newKey = prefix + uid;
-
             for (const oldAlias of oldAliases) {
                 if (!oldAlias || oldAlias === uid) continue;
                 const oldKey = prefix + oldAlias;
-
-                // 1. ترحيل من localStorage
                 try {
                     const localData = localStorage.getItem(oldKey);
                     if (localData !== null) {
@@ -230,20 +271,6 @@ const App = {
                         }
                     }
                 } catch (e) {}
-
-                // 2. ترحيل من Firebase (السحابة)
-                if (typeof FirebaseDB !== 'undefined' && FirebaseDB.isReady) {
-                    try {
-                        const cloudData = await FirebaseDB.get(oldKey);
-                        if (cloudData !== null && cloudData !== undefined) {
-                            const existingNew = await FirebaseDB.get(newKey);
-                            if (existingNew === null || existingNew === undefined || (Array.isArray(existingNew) && existingNew.length === 0)) {
-                                await FirebaseDB.save(newKey, cloudData);
-                                migratedCount++;
-                            }
-                        }
-                    } catch (e) {}
-                }
             }
         }
 
@@ -394,6 +421,36 @@ const App = {
                 if (e.key === 'Escape') this.toggleSidebar(false);
             });
             this._escapeBound = true;
+        }
+
+        // تحويل أي أرقام هندية/عربية يتم إدخالها إلى أرقام إنجليزية فوراً مع دعم كل أنواع الحقول
+        if (!this._digitsSanitizerBound) {
+            document.addEventListener('input', (e) => {
+                const target = e.target;
+                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+                    const inputType = (target.type || '').toLowerCase();
+                    const supportsSelection = ['text', 'search', 'url', 'tel', 'password'].includes(inputType) || target.tagName === 'TEXTAREA';
+                    const val = target.value;
+                    if (val && /[٠-٩۰-۹]/.test(val)) {
+                        const englishVal = this.toEnglishDigits(val);
+                        if (supportsSelection) {
+                            try {
+                                const start = target.selectionStart;
+                                const end = target.selectionEnd;
+                                target.value = englishVal;
+                                if (start !== null && end !== null) {
+                                    target.setSelectionRange(start, end);
+                                }
+                            } catch (err) {
+                                target.value = englishVal;
+                            }
+                        } else {
+                            target.value = englishVal;
+                        }
+                    }
+                }
+            }, true);
+            this._digitsSanitizerBound = true;
         }
     },
 

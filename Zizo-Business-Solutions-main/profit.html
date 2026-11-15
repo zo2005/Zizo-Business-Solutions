@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar-u-nu-latn" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +17,7 @@
             localStorage.setItem('isLoggedIn', 'true');
         }
     </script>
-    <link rel="stylesheet" href="app.css?v=2.3">
+    <link rel="stylesheet" href="app.css?v=4.0">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
@@ -26,6 +26,45 @@
     <meta name="theme-color" content="#10b981">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Zizo Solutions">
+    <style>
+        input[type="date"], input[type="number"], input[type="text"] {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+            font-variant-numeric: tabular-nums lining-nums !important;
+            -webkit-font-feature-settings: "locl" 0, "tnum" 1, "lnum" 1 !important;
+            font-feature-settings: "locl" 0, "tnum" 1, "lnum" 1 !important;
+        }
+        .period-shortcuts {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .period-shortcuts button {
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .period-shortcuts button:hover, .period-shortcuts button.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .breakdown-box {
+            background: var(--surface-hover);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard-container">
@@ -34,7 +73,7 @@
         <main class="main-content">
             <header class="top-bar">
                 <div class="top-bar-title" style="display: flex; align-items: center; gap: 12px;">
-                    <button class="mobile-menu-btn" type="button"></button>
+                    <button class="mobile-menu-btn" type="button" aria-label="فتح القائمة"></button>
                     <h1><span id="pageHeaderIcon"></span> حساب الأرباح (كل 15 يوماً - نصف شهري)</h1>
                 </div>
                 <div class="top-bar-actions">
@@ -43,61 +82,81 @@
             </header>
 
             <div class="page-body">
+                <!-- إحصائيات الفترة الحالية المختارة -->
                 <div class="metrics-grid">
                     <div class="metric-card info">
-                        <div class="title">إجمالي المبيعات المسجلة</div>
-                        <div class="value" id="totalSalesVal">0.00 ج.م</div>
+                        <div class="title">إجمالي مبيعات الفترة المختارة</div>
+                        <div class="value" id="topPeriodSalesVal">0.00 ج.م</div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodSalesCount">0 فاتورة</div>
                     </div>
                     <div class="metric-card danger">
-                        <div class="title">إجمالي المصروفات والتكاليف</div>
-                        <div class="value" id="totalExpensesVal">0.00 ج.م</div>
+                        <div class="title">إجمالي مصروفات وتكاليف الفترة</div>
+                        <div class="value" id="topPeriodExpensesVal">0.00 ج.م</div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodExpensesBreakdown">سحب مخزن + رواتب + عامة</div>
                     </div>
                     <div class="metric-card success">
-                        <div class="title">صافي الربح الإجمالي</div>
-                        <div class="value" id="netProfitVal">0.00 ج.م</div>
+                        <div class="title">صافي ربح الفترة المختارة</div>
+                        <div class="value" id="topPeriodNetVal">0.00 ج.م</div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;" id="topPeriodMargin">معدل الربح: 0%</div>
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title"><span id="formCardIcon"></span> تسجيل دورة أرباح جديدة</div>
-                        <button class="btn btn-secondary btn-sm" type="button" id="refreshBtn" onclick="autoFillSystemData()"></button>
+                        <div class="card-title"><span id="formCardIcon"></span> تسجيل دورة أرباح جديدة من واقع السيستم</div>
+                        <button class="btn btn-secondary btn-sm" type="button" id="refreshBtn" onclick="refreshAndRecalculate()"></button>
                     </div>
+
+                    <!-- أزرار الاختيار السريع للفترات -->
+                    <div class="period-shortcuts">
+                        <span style="font-size: 12px; font-weight: 700; align-self: center; margin-left: 6px;">فترات سريعة:</span>
+                        <button type="button" onclick="setQuickPeriod('firstHalf')">النصف الأول (1 إلى 15)</button>
+                        <button type="button" onclick="setQuickPeriod('secondHalf')">النصف الثاني (16 إلى نهاية الشهر)</button>
+                        <button type="button" onclick="setQuickPeriod('thisMonth')">الشهر الحالي كاملاً</button>
+                        <button type="button" onclick="setQuickPeriod('lastMonth')">الشهر الماضي</button>
+                        <button type="button" onclick="setQuickPeriod('allTime')">كل الفترات (من أول يوم للآن)</button>
+                    </div>
+
                     <form id="profitForm">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="startDate">من تاريخ</label>
-                                <input type="date" id="startDate" onchange="calculatePeriodData()" required>
+                                <input type="date" id="startDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()" required>
                             </div>
                             <div class="form-group">
                                 <label for="endDate">إلى تاريخ</label>
-                                <input type="date" id="endDate" onchange="calculatePeriodData()" required>
+                                <input type="date" id="endDate" lang="en-GB" dir="ltr" style="text-align: right;" onchange="calculatePeriodData()" oninput="calculatePeriodData()" required>
                             </div>
                             <div class="form-group">
                                 <label for="periodName">اسم / وصف الفترة</label>
-                                <input type="text" id="periodName" placeholder="مثال: أرباح النصف الأول من الشهر" required>
+                                <input type="text" id="periodName" placeholder="مثال: دورة أرباح النصف الأول من الشهر" required>
                             </div>
                             <div class="form-group">
-                                <label for="periodSales">إجمالي المبيعات بالفترة (تلقائي)</label>
-                                <input type="number" id="periodSales" min="0" step="any" placeholder="0.00" required>
+                                <label for="periodSales">إجمالي المبيعات المحصلة بالفترة (تلقائي)</label>
+                                <input type="number" id="periodSales" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
                                 <label for="purchaseCost">تكلفة سحوبات المخزن بالفترة (تلقائي)</label>
-                                <input type="number" id="purchaseCost" min="0" step="any" placeholder="0.00" required>
+                                <input type="number" id="purchaseCost" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
                                 <label for="salariesCost">رواتب الموظفين بالفترة (تلقائي)</label>
-                                <input type="number" id="salariesCost" min="0" step="any" placeholder="0.00" required>
+                                <input type="number" id="salariesCost" min="0" step="any" placeholder="0.00" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="generalExpenses">مصروفات عامة (إيجار، مياه، إلخ)</label>
-                                <input type="number" id="generalExpenses" min="0" step="any" value="0" oninput="updateLiveNetProfit()" required>
+                                <label for="generalExpenses">مصروفات عامة إضافية (إيجار، مياه، إلخ)</label>
+                                <input type="number" id="generalExpenses" min="0" step="any" value="0" lang="en" dir="ltr" style="text-align: right;" oninput="updateLiveNetProfit()" required>
                             </div>
                             <div class="form-group">
-                                <label for="liveNetProfit">صافي الربح المتوقع بالفترة</label>
-                                <input type="text" id="liveNetProfit" style="font-weight: 800; color: var(--primary);" readonly placeholder="0.00 ج.م">
+                                <label for="liveNetProfit">صافي الربح المحسوب للفترة</label>
+                                <input type="text" id="liveNetProfit" style="font-weight: 800; color: var(--primary); text-align: right;" dir="ltr" readonly placeholder="0.00 ج.م">
                             </div>
                         </div>
+
+                        <div class="breakdown-box" id="calcDetailsBox">
+                            جاري جلب وحساب البيانات اللحظية من الفواتير وسجل المخزن والرواتب...
+                        </div>
+
                         <div style="margin-top: 14px;">
                             <button type="submit" class="btn btn-primary" id="submitBtn" style="min-width: 170px;"></button>
                         </div>
@@ -106,13 +165,13 @@
 
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title"><span id="tableCardIcon"></span> سجل فترات الأرباح السابقة</div>
+                        <div class="card-title"><span id="tableCardIcon"></span> سجل دورات الأرباح السابقة المحفوظة</div>
                     </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>الفترة</th>
+                                    <th>الدورة / الفترة</th>
                                     <th>إجمالي المبيعات</th>
                                     <th>سحب المخزن</th>
                                     <th>الرواتب</th>
@@ -133,133 +192,389 @@
     <!-- Firebase SDK (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js?v=2.3"></script>
-    <script src="app.js?v=2.3"></script>
+    <script src="firebase-config.js?v=4.0"></script>
+    <script src="app.js?v=4.0"></script>
     <script>
         App.requireAuth();
 
         let profitData = App.loadInitialData('profitList_', []);
+        let currentSales = App.loadInitialData('salesList_', []);
+        let currentGeneralInv = App.loadInitialData('inventoryGeneral_', []);
+        let currentSingerInv = App.loadInitialData('inventorySinger_', []);
+        let currentOverlockInv = App.loadInitialData('inventoryOverlock_', []);
+        let currentHistory = App.loadInitialData('inventoryHistory_', []);
+        let currentSalaries = App.loadInitialData('salariesList_', []);
 
-        function initDefaultDates() {
+        /**
+         * دالة معيارية قوية لتحويل أي تاريخ أو توقيت إلى YYYY-MM-DD بأرقام إنجليزية
+         */
+        function normalizeDate(val) {
+            if (!val) return null;
+            if (val instanceof Date) {
+                if (isNaN(val.getTime())) return null;
+                const y = val.getFullYear();
+                const m = String(val.getMonth() + 1).padStart(2, '0');
+                const d = String(val.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            // إذا كان التوقيت ملي ثانية timestamp
+            if (typeof val === 'number' || (/^\d{12,14}$/.test(String(val).trim()))) {
+                const d = new Date(Number(val));
+                if (!isNaN(d.getTime())) {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                }
+            }
+
+            let s = App.toEnglishDigits(String(val)).trim();
+            s = s.split(/[ T]/)[0].replace(/,/g, '');
+            const nums = s.match(/\d+/g);
+            if (!nums || nums.length < 3) return null;
+
+            let y, m, d;
+            if (nums[0].length === 4) {
+                // 2026-11-15 أو 2026/11/15
+                y = parseInt(nums[0], 10);
+                m = parseInt(nums[1], 10);
+                d = parseInt(nums[2], 10);
+            } else if (nums[2].length === 4) {
+                // 15-11-2026 أو 15/11/2026
+                y = parseInt(nums[2], 10);
+                const p0 = parseInt(nums[0], 10);
+                const p1 = parseInt(nums[1], 10);
+                if (p0 > 12) {
+                    d = p0; m = p1;
+                } else if (p1 > 12) {
+                    m = p0; d = p1;
+                } else {
+                    d = p0; m = p1;
+                }
+            } else {
+                return null;
+            }
+
+            if (y < 2000 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+            return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+
+        /**
+         * التحقق هل التاريخ يقع داخل الفترة
+         */
+        function isDateInPeriod(targetDateStr, sDateStr, eDateStr) {
+            const cleanTarget = normalizeDate(targetDateStr);
+            const cleanStart = normalizeDate(sDateStr);
+            const cleanEnd = normalizeDate(eDateStr);
+
+            // إذا لم يتم تحديد بداية ونهاية نعتبره داخل الفترة
+            if (!cleanStart && !cleanEnd) return true;
+            if (!cleanTarget) return true; // إذا لم يكن هناك تاريخ مسجل للسجل ندرجه لعدم تفويت مبيعات
+
+            const minDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanStart : cleanEnd) : (cleanStart || cleanEnd);
+            const maxDate = cleanStart && cleanEnd ? (cleanStart <= cleanEnd ? cleanEnd : cleanStart) : (cleanEnd || cleanStart);
+
+            if (cleanStart && cleanEnd) {
+                return cleanTarget >= minDate && cleanTarget <= maxDate;
+            } else if (cleanStart) {
+                return cleanTarget >= cleanStart;
+            } else if (cleanEnd) {
+                return cleanTarget <= cleanEnd;
+            }
+            return true;
+        }
+
+        /**
+         * تنسيق التاريخ للعرض بالإنجليزية بصيغة DD-MM-YYYY
+         */
+        function formatDisplayDate(val) {
+            const clean = normalizeDate(val);
+            if (!clean) return App.toEnglishDigits(val || '');
+            const parts = clean.split('-');
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+
+        /**
+         * تحديد الفترات السريعة
+         */
+        function setQuickPeriod(type) {
             const today = new Date();
             const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const month = today.getMonth() + 1;
+            const startElem = document.getElementById('startDate');
+            const endElem = document.getElementById('endDate');
+            if (!startElem || !endElem) return;
+
+            let sDate, eDate;
+
+            if (type === 'firstHalf') {
+                sDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                eDate = `${year}-${String(month).padStart(2, '0')}-15`;
+            } else if (type === 'secondHalf') {
+                sDate = `${year}-${String(month).padStart(2, '0')}-16`;
+                const lastDay = new Date(year, month, 0).getDate();
+                eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            } else if (type === 'thisMonth') {
+                sDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            } else if (type === 'lastMonth') {
+                const prevM = month === 1 ? 12 : month - 1;
+                const prevY = month === 1 ? year - 1 : year;
+                sDate = `${prevY}-${String(prevM).padStart(2, '0')}-01`;
+                const lastDay = new Date(prevY, prevM, 0).getDate();
+                eDate = `${prevY}-${String(prevM).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            } else if (type === 'allTime') {
+                sDate = `2024-01-01`;
+                eDate = `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            }
+
+            startElem.value = sDate;
+            endElem.value = eDate;
+            calculatePeriodData();
+        }
+
+        function initDefaultDates(force = false) {
+            const startElem = document.getElementById('startDate');
+            const endElem = document.getElementById('endDate');
+            if (!startElem || !endElem) return;
+            if (!force && startElem.value && endElem.value) return;
+
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1;
             const day = today.getDate();
 
             let sDate, eDate;
             if (day <= 15) {
-                sDate = `${year}-${month}-01`;
-                eDate = `${year}-${month}-15`;
+                sDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                eDate = `${year}-${String(month).padStart(2, '0')}-15`;
             } else {
-                sDate = `${year}-${month}-16`;
-                const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
-                eDate = `${year}-${month}-${lastDay}`;
+                sDate = `${year}-${String(month).padStart(2, '0')}-16`;
+                const lastDay = new Date(year, month, 0).getDate();
+                eDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
             }
 
-            if (!document.getElementById('startDate').value) {
-                document.getElementById('startDate').value = sDate;
-            }
-            if (!document.getElementById('endDate').value) {
-                document.getElementById('endDate').value = eDate;
-            }
+            startElem.value = sDate;
+            endElem.value = eDate;
         }
 
+        function isSameRecord(a, b) {
+            if (!a || !b) return false;
+            if (a.id && b.id && String(a.id) === String(b.id)) return true;
+            if (a.invoiceNo && b.invoiceNo && String(a.invoiceNo) === String(b.invoiceNo)) return true;
+            if (a.date && b.date && a.item && b.item && a.qty && b.qty && a.type && b.type) {
+                return a.date === b.date && a.item === b.item && a.qty === b.qty && a.type === b.type;
+            }
+            return false;
+        }
+
+        function getAllSourceData(prefix, inMemoryList = []) {
+            let result = [];
+            if (Array.isArray(inMemoryList) && inMemoryList.length > 0) {
+                result = result.concat(inMemoryList);
+            }
+
+            const initial = App.loadInitialData(prefix, []);
+            if (Array.isArray(initial) && initial.length > 0) {
+                initial.forEach(item => {
+                    if (!result.some(x => isSameRecord(x, item))) {
+                        result.push(item);
+                    }
+                });
+            }
+
+            try {
+                const base = prefix.replace(/_$/, '');
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && (k.startsWith(prefix) || k.startsWith(base))) {
+                        const raw = localStorage.getItem(k);
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                parsed.forEach(item => {
+                                    if (!result.some(x => isSameRecord(x, item))) {
+                                        result.push(item);
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            return result;
+        }
+
+        /**
+         * الحساب الدقيق والشامل للأرباح في الفترة المحددة
+         */
         function calculatePeriodData() {
-            const sDate = document.getElementById('startDate').value;
-            const eDate = document.getElementById('endDate').value;
-            if (!sDate || !eDate) return;
+            const startElem = document.getElementById('startDate');
+            const endElem = document.getElementById('endDate');
+            if (!startElem || !endElem) return;
+
+            if (!startElem.value || !endElem.value) {
+                initDefaultDates();
+            }
+
+            const startVal = normalizeDate(startElem.value);
+            const endVal = normalizeDate(endElem.value);
+            if (!startVal || !endVal) return;
 
             // اسم الفترة المقترح
             const periodField = document.getElementById('periodName');
-            if (!periodField.value || periodField.value.startsWith('فترة من')) {
-                periodField.value = `فترة من ${sDate} إلى ${eDate}`;
+            if (periodField && (!periodField.value || periodField.value.startsWith('دورة من') || periodField.value.startsWith('فترة من'))) {
+                periodField.value = `دورة من ${formatDisplayDate(startVal)} إلى ${formatDisplayDate(endVal)}`;
             }
 
-            // 1. حساب المبيعات المسجلة بين التاريخين (deliveryDate)
-            const salesKey = 'salesList_' + userId;
-            const salesData = JSON.parse(localStorage.getItem(salesKey)) || [];
+            // 1. حساب كل المبيعات والفواتير المسجلة في الفترة
+            const salesList = getAllSourceData('salesList_', currentSales);
             let totalPeriodSales = 0;
-            salesData.forEach(sale => {
-                const d = sale.deliveryDate;
-                if (!d || (d >= sDate && d <= eDate)) {
-                    totalPeriodSales += (parseFloat(sale.grandTotalPrice) || 0);
+            let salesCount = 0;
+
+            salesList.forEach(sale => {
+                const saleDate = sale.deliveryDate || sale.date || sale.invoiceDate || (sale.id && sale.id > 1000000000000 ? new Date(sale.id) : null);
+                if (isDateInPeriod(saleDate, startVal, endVal)) {
+                    let saleTotal = parseFloat(App.toEnglishDigits(sale.grandTotalPrice ?? sale.totalPrice ?? sale.total ?? sale.grandTotal ?? sale.netTotal ?? 0)) || 0;
+                    if (!saleTotal && Array.isArray(sale.items)) {
+                        sale.items.forEach(it => {
+                            let itPrice = parseFloat(App.toEnglishDigits(it.itemTotalPrice ?? 0)) || 0;
+                            if (itPrice <= 0) {
+                                const p = parseFloat(App.toEnglishDigits(it.itemPrice ?? it.price ?? 0)) || 0;
+                                const q = parseFloat(App.toEnglishDigits(it.totalItems ?? it.qty ?? 0)) || 0;
+                                itPrice = p * q;
+                            }
+                            if (itPrice <= 0 && Array.isArray(it.bagsDetails)) {
+                                let count = 0;
+                                it.bagsDetails.forEach(b => {
+                                    count += (parseFloat(App.toEnglishDigits(b.subTotal ?? (b.bags * b.itemsPerBag) ?? 0)) || 0);
+                                });
+                                const p = parseFloat(App.toEnglishDigits(it.itemPrice ?? it.price ?? 0)) || 0;
+                                itPrice = count * p;
+                            }
+                            saleTotal += itPrice;
+                        });
+                    }
+                    totalPeriodSales += saleTotal;
+                    salesCount++;
                 }
             });
 
             // 2. حساب تكلفة سحوبات المخزن في الفترة المحددة
-            // بناء خريطة أسعار الأصناف من الجداول الثلاثة
+            const generalInv = getAllSourceData('inventoryGeneral_', currentGeneralInv);
+            const singerInv = getAllSourceData('inventorySinger_', currentSingerInv);
+            const overlockInv = getAllSourceData('inventoryOverlock_', currentOverlockInv);
+            const historyList = getAllSourceData('inventoryHistory_', currentHistory);
+
             const itemPriceMap = {};
-            const generalInv = JSON.parse(localStorage.getItem('inventoryGeneral_' + userId)) || [];
             generalInv.forEach(i => {
                 if (i.name) {
-                    const prc = parseFloat(i.price) || 0;
-                    itemPriceMap[i.name.trim()] = prc;
+                    const prc = parseFloat(App.toEnglishDigits(i.price)) || 0;
+                    const name = i.name.trim();
+                    itemPriceMap[name] = prc;
                     if (Array.isArray(i.sizes)) {
                         i.sizes.forEach(sz => {
-                            itemPriceMap[`${i.name.trim()} (${sz})`] = prc;
+                            itemPriceMap[`${name} (${sz})`] = prc;
                         });
                     }
                 }
             });
 
-            const singerInv = JSON.parse(localStorage.getItem('inventorySinger_' + userId)) || [];
             singerInv.forEach(i => {
-                const prc = parseFloat(i.price) || 0;
+                const prc = parseFloat(App.toEnglishDigits(i.price)) || 0;
                 if (i.code) itemPriceMap[`بكر سنجر كود ${i.code}`] = prc;
             });
 
-            const overlockInv = JSON.parse(localStorage.getItem('inventoryOverlock_' + userId)) || [];
             overlockInv.forEach(i => {
-                const prc = parseFloat(i.price) || 0;
+                const prc = parseFloat(App.toEnglishDigits(i.price)) || 0;
                 if (i.color) itemPriceMap[`بكر أوفر ${i.color}`] = prc;
             });
 
-            // قراءة سجل العمليات inventoryHistory_ لحساب السحب بالفترة
-            const historyKey = 'inventoryHistory_' + userId;
-            const historyList = JSON.parse(localStorage.getItem(historyKey)) || [];
             let totalWithdrawCost = 0;
+            let withdrawCount = 0;
 
             historyList.forEach(hist => {
-                if (hist.type === 'سحب') {
-                    const hDate = hist.date;
-                    if (!hDate || (hDate >= sDate && hDate <= eDate)) {
+                const typeStr = (hist.type || '').trim();
+                // حساب عمليات السحب من المخزن
+                if (typeStr === 'سحب' || typeStr.includes('سحب')) {
+                    const histDate = hist.date || (hist.id && hist.id > 1000000000000 ? new Date(hist.id) : null);
+                    if (isDateInPeriod(histDate, startVal, endVal)) {
                         const itemName = (hist.item || '').trim();
-                        let unitPrice = itemPriceMap[itemName] || 0;
+                        let unitPrice = parseFloat(App.toEnglishDigits(hist.price || hist.unitPrice || 0)) || itemPriceMap[itemName] || 0;
                         if (!unitPrice) {
-                            // محاولة مطابقة الاسم الأساسي قبل القوس
                             const baseName = itemName.split('(')[0].trim();
                             unitPrice = itemPriceMap[baseName] || 0;
                         }
-                        const qty = parseFloat(hist.qty) || 0;
-                        totalWithdrawCost += (qty * unitPrice);
+                        if (!unitPrice) {
+                            for (const k in itemPriceMap) {
+                                if (itemName.includes(k) || k.includes(itemName)) {
+                                    unitPrice = itemPriceMap[k];
+                                    break;
+                                }
+                            }
+                        }
+                        const qty = parseFloat(App.toEnglishDigits(hist.qty)) || 0;
+                        const directTotal = parseFloat(App.toEnglishDigits(hist.totalCost || hist.totalPrice || 0)) || 0;
+                        totalWithdrawCost += (directTotal > 0 ? directTotal : (qty * unitPrice));
+                        withdrawCount++;
                     }
                 }
             });
 
-            // 3. حساب الرواتب المصروفة بالفترة
-            const salariesKey = 'salariesList_' + userId;
-            const salariesData = JSON.parse(localStorage.getItem(salariesKey)) || [];
+            // 3. حساب رواتب الموظفين المصروفة بالفترة
+            const salariesList = getAllSourceData('salariesList_', currentSalaries);
             let totalPeriodSalaries = 0;
-            salariesData.forEach(sal => {
-                const sSalDate = sal.date;
-                // إذا وجد تاريخ مسجل للراتب نقارنه بالفترة، وإذا لم يكن له تاريخ نحسبه
-                if (!sSalDate || (sSalDate >= sDate && sSalDate <= eDate)) {
-                    totalPeriodSalaries += (parseFloat(sal.netDue) || 0);
+            let salariesCount = 0;
+
+            salariesList.forEach(sal => {
+                const salDate = sal.date || sal.salaryDate || (sal.id && sal.id > 1000000000000 ? new Date(sal.id) : null);
+                if (isDateInPeriod(salDate, startVal, endVal)) {
+                    const net = parseFloat(App.toEnglishDigits(sal.netDue ?? sal.netSalary ?? sal.net ?? sal.totalDue ?? sal.basicSalary ?? 0)) || 0;
+                    totalPeriodSalaries += net;
+                    salariesCount++;
                 }
             });
 
-            document.getElementById('periodSales').value = totalPeriodSales.toFixed(2);
-            document.getElementById('purchaseCost').value = totalWithdrawCost.toFixed(2);
-            document.getElementById('salariesCost').value = totalPeriodSalaries.toFixed(2);
+            // تحديث حقول النموذج بالأرقام الإنجليزية
+            const periodSalesInput = document.getElementById('periodSales');
+            const purchaseCostInput = document.getElementById('purchaseCost');
+            const salariesCostInput = document.getElementById('salariesCost');
+
+            if (periodSalesInput) periodSalesInput.value = totalPeriodSales.toFixed(2);
+            if (purchaseCostInput) purchaseCostInput.value = totalWithdrawCost.toFixed(2);
+            if (salariesCostInput) salariesCostInput.value = totalPeriodSalaries.toFixed(2);
+
+            // صندوق توضيح تفاصيل الحساب
+            const box = document.getElementById('calcDetailsBox');
+            if (box) {
+                box.innerHTML = `
+                    <strong>📊 تفاصيل دورة الفترة (${formatDisplayDate(startVal)} إلى ${formatDisplayDate(endVal)}):</strong><br>
+                    • تم العثور على <strong>${salesCount}</strong> فاتورة مبيعات بإجمالي: <strong>${totalPeriodSales.toFixed(2)} ج.م</strong><br>
+                    • تم العثور على <strong>${withdrawCount}</strong> عملية سحب مخزن بإجمالي تكلفة: <strong>${totalWithdrawCost.toFixed(2)} ج.م</strong><br>
+                    • تم العثور على <strong>${salariesCount}</strong> راتب موظف مصروف بإجمالي: <strong>${totalPeriodSalaries.toFixed(2)} ج.م</strong>
+                `;
+            }
 
             updateLiveNetProfit();
         }
 
+        function refreshAndRecalculate() {
+            calculatePeriodData();
+        }
+
         function updateLiveNetProfit() {
-            const sales = parseFloat(document.getElementById('periodSales').value) || 0;
-            const withdrawCost = parseFloat(document.getElementById('purchaseCost').value) || 0;
-            const salaries = parseFloat(document.getElementById('salariesCost').value) || 0;
-            const generalExp = parseFloat(document.getElementById('generalExpenses').value) || 0;
+            const periodSalesInput = document.getElementById('periodSales');
+            const purchaseCostInput = document.getElementById('purchaseCost');
+            const salariesCostInput = document.getElementById('salariesCost');
+            const generalExpInput = document.getElementById('generalExpenses');
+
+            const sales = parseFloat(periodSalesInput ? periodSalesInput.value : 0) || 0;
+            const withdrawCost = parseFloat(purchaseCostInput ? purchaseCostInput.value : 0) || 0;
+            const salaries = parseFloat(salariesCostInput ? salariesCostInput.value : 0) || 0;
+            const generalExp = parseFloat(generalExpInput ? generalExpInput.value : 0) || 0;
 
             const totalExp = withdrawCost + salaries + generalExp;
             const net = sales - totalExp;
@@ -269,11 +584,23 @@
                 netField.value = net.toFixed(2) + ' ج.م';
                 netField.style.color = net >= 0 ? 'var(--primary)' : 'var(--danger)';
             }
-        }
 
-        function autoFillSystemData() {
-            initDefaultDates();
-            calculatePeriodData();
+            // تحديث كروت الإحصائيات العلوية الخاصة بالفترة المحددة
+            const topSales = document.getElementById('topPeriodSalesVal');
+            const topExpenses = document.getElementById('topPeriodExpensesVal');
+            const topNet = document.getElementById('topPeriodNetVal');
+            const topMargin = document.getElementById('topPeriodMargin');
+
+            if (topSales) topSales.textContent = sales.toFixed(2) + ' ج.م';
+            if (topExpenses) topExpenses.textContent = totalExp.toFixed(2) + ' ج.م';
+            if (topNet) {
+                topNet.textContent = net.toFixed(2) + ' ج.م';
+                topNet.style.color = net >= 0 ? 'var(--primary)' : 'var(--danger)';
+            }
+            if (topMargin) {
+                const margin = sales > 0 ? ((net / sales) * 100).toFixed(1) : '0';
+                topMargin.textContent = `معدل صافي الربح: ${margin}%`;
+            }
         }
 
         function saveAndRender() {
@@ -282,7 +609,7 @@
         }
 
         function deleteProfit(id) {
-            if (confirm("هل أنت متأكد من حذف هذه الفترة؟")) {
+            if (confirm("هل أنت متأكد من حذف هذه الدورة من السجل؟")) {
                 profitData = profitData.filter(p => p.id !== id);
                 saveAndRender();
             }
@@ -292,20 +619,12 @@
             const tbody = document.getElementById('profitTableBody');
             tbody.innerHTML = '';
 
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="color: var(--text-muted); padding: 18px;">لا توجد فترات أرباح مسجلة لهذا الحساب حتى الآن.</td></tr>`;
-                document.getElementById('totalSalesVal').textContent = '0.00 ج.م';
-                document.getElementById('totalExpensesVal').textContent = '0.00 ج.م';
-                document.getElementById('netProfitVal').textContent = '0.00 ج.م';
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="color: var(--text-muted); padding: 18px;">لا توجد دورات أرباح مسجلة سابقة حتى الآن.</td></tr>`;
                 return;
             }
 
-            let sumSales = 0, sumExpenses = 0, sumNet = 0;
             data.forEach(item => {
-                sumSales += item.periodSales;
-                sumExpenses += item.totalExpenses;
-                sumNet += item.netProfit;
-
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${item.periodName}</strong></td>
@@ -319,10 +638,6 @@
                 `;
                 tbody.appendChild(tr);
             });
-
-            document.getElementById('totalSalesVal').textContent = sumSales.toFixed(2) + ' ج.م';
-            document.getElementById('totalExpensesVal').textContent = sumExpenses.toFixed(2) + ' ج.م';
-            document.getElementById('netProfitVal').textContent = sumNet.toFixed(2) + ' ج.م';
         }
 
         document.getElementById('profitForm').addEventListener('submit', function(e) {
@@ -336,23 +651,26 @@
             const totalExpenses = purchaseCost + salariesCost + generalExpenses;
             const netProfit = periodSales - totalExpenses;
 
-            profitData.push({ id: Date.now(), periodName, periodSales, purchaseCost, salariesCost, generalExpenses, totalExpenses, netProfit });
+            profitData.unshift({ id: Date.now(), periodName, periodSales, purchaseCost, salariesCost, generalExpenses, totalExpenses, netProfit });
             saveAndRender();
+            alert("تم حفظ دورة الأرباح في السجل بنجاح!");
             this.reset();
-            autoFillSystemData();
+            initDefaultDates(true);
+            calculatePeriodData();
         });
 
-        window.onload = function() {
+        function initPage() {
             App.initLayout('profit');
 
             document.getElementById('pageHeaderIcon').innerHTML = App.icon('chart', 20);
             document.getElementById('printBtn').innerHTML = App.icon('printer', 14) + ' <span>طباعة</span>';
             document.getElementById('formCardIcon').innerHTML = App.icon('edit', 16);
-            document.getElementById('refreshBtn').innerHTML = App.icon('reset', 13) + ' <span>تحديث تلقائي</span>';
+            document.getElementById('refreshBtn').innerHTML = App.icon('reset', 13) + ' <span>تحديث من السيستم</span>';
             document.getElementById('tableCardIcon').innerHTML = App.icon('receipt', 16);
-            document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تسجيل فترة الأرباح</span>';
+            document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تسجيل دورة الأرباح</span>';
 
-            autoFillSystemData();
+            initDefaultDates(false);
+            calculatePeriodData();
             renderTable(profitData);
 
             App.subscribeData('profitList_', (data) => {
@@ -361,13 +679,39 @@
                     renderTable(profitData);
                 }
             }, []);
-        };
+
+            // اشتراكات لحظية سحابية لتحديث المبيعات، الرواتب، والمخزن فور وصول أي بيانات
+            App.subscribeData('salesList_', (data) => {
+                if (Array.isArray(data) && data.length > 0) currentSales = data;
+                calculatePeriodData();
+            }, []);
+            App.subscribeData('salariesList_', (data) => {
+                if (Array.isArray(data) && data.length > 0) currentSalaries = data;
+                calculatePeriodData();
+            }, []);
+            App.subscribeData('inventoryHistory_', (data) => {
+                if (Array.isArray(data) && data.length > 0) currentHistory = data;
+                calculatePeriodData();
+            }, []);
+            App.subscribeData('inventoryGeneral_', (data) => {
+                if (Array.isArray(data) && data.length > 0) currentGeneralInv = data;
+                calculatePeriodData();
+            }, []);
+            App.subscribeData('inventorySinger_', (data) => {
+                if (Array.isArray(data) && data.length > 0) currentSingerInv = data;
+                calculatePeriodData();
+            }, []);
+            App.subscribeData('inventoryOverlock_', (data) => {
+                if (Array.isArray(data) && data.length > 0) currentOverlockInv = data;
+                calculatePeriodData();
+            }, []);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
     </script>
 </body>
 </html>
-
-
-
-
-
-

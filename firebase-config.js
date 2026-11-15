@@ -147,9 +147,9 @@ const FirebaseDB = {
   },
 
   /**
-   * جلب بيانات مفتاح معين
+   * جلب بيانات مفتاح معين مع حد أقصى للانتظار لتفادي التعليق
    */
-  async get(key, defaultValue = null) {
+  async get(key, defaultValue = null, timeoutMs = 4000) {
     let localData = defaultValue;
     try {
       const stored = localStorage.getItem(key);
@@ -161,8 +161,13 @@ const FirebaseDB = {
     if (!db) return localData;
 
     try {
-      const doc = await db.collection('app_data').doc(key).get();
-      if (doc.exists && doc.data().json) {
+      const getPromise = db.collection('app_data').doc(key).get();
+      const doc = timeoutMs > 0 ? await Promise.race([
+        getPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), timeoutMs))
+      ]) : await getPromise;
+
+      if (doc && doc.exists && doc.data().json) {
         const cloudData = JSON.parse(doc.data().json);
         localStorage.setItem(key, JSON.stringify(cloudData));
         this.setStatus('online');
@@ -216,10 +221,19 @@ const FirebaseDB = {
           }
         }
       } else {
-        // المستند غير موجود أو تم حذفه من السحابة
-        try {
-          localStorage.removeItem(key);
-        } catch(e) {}
+        // المستند غير موجود في السحابة: فحص وجود داتا محلية لعدم فقدانها ورفعها للسحابة
+        const local = localStorage.getItem(key);
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (Array.isArray(parsed) ? parsed.length > 0 : (parsed !== null && parsed !== undefined)) {
+              this.save(key, parsed);
+              onDataUpdate(parsed);
+              isInitial = false;
+              return;
+            }
+          } catch(e) {}
+        }
         onDataUpdate(defaultValue);
       }
       isInitial = false;

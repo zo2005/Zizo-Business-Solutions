@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar-u-nu-latn" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,6 +56,26 @@
             window.location.replace('dashboard.html');
         }
 
+        function proceedLogin(username, uid, company) {
+            sessionStorage.setItem('isLoggedIn', 'true');
+            sessionStorage.setItem('currentUser', username);
+            sessionStorage.setItem('currentUserId', uid);
+            sessionStorage.setItem('currentCompany', company || '');
+            localStorage.setItem('currentUser', username);
+            localStorage.setItem('currentUserId', uid);
+            localStorage.setItem('currentCompany', company || '');
+            localStorage.setItem('isLoggedIn', 'true');
+
+            // ترحيل البيانات سريعاً في الخلفية دون تعطيل التحويل
+            if (typeof App !== 'undefined' && App.migrateUserData) {
+                App.migrateUserData(username, uid).catch(() => {});
+            }
+
+            const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
+            sessionStorage.removeItem('redirectAfterLogin');
+            window.location.replace(target);
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const user = document.getElementById('username').value.trim();
@@ -73,59 +93,81 @@
 
             const normalizedUser = user.toLowerCase();
 
-            // فحص كلمة مرور المدير (الحالية أو المحدثة)
-            let adminSavedPass = localStorage.getItem('adminPassword') || '200522004';
-            if (typeof FirebaseDB !== 'undefined') {
-                const adminSettings = await FirebaseDB.get('adminSettings');
-                if (adminSettings && adminSettings.adminPassword) {
-                    adminSavedPass = adminSettings.adminPassword;
-                    localStorage.setItem('adminPassword', adminSavedPass);
-                }
-            }
-
-            // حساب الإدارة الرئيسي بكل مرونة لضمان التوافق بين اللابتوب والموبايل (Admin / Zizo2312005 / zizo)
+            // 1. فحص فوري لحساب المدير (Admin / Zizo2312005 / zizo) بدون انتظار السحابة
             const isAdminMatch = normalizedUser === 'zizo2312005' || 
                                  normalizedUser === 'admin' || 
                                  normalizedUser === 'zizo' || 
                                  normalizedUser === 'zizo_solutions' ||
                                  normalizedUser.startsWith('zizo');
+
+            let adminSavedPass = localStorage.getItem('adminPassword') || '200522004';
             if (isAdminMatch && (pass === adminSavedPass || pass === '200522004')) {
-                sessionStorage.setItem('isLoggedIn', 'true');
-                sessionStorage.setItem('currentUser', 'admin');
-                sessionStorage.setItem('currentUserId', 'admin');
-                sessionStorage.setItem('currentCompany', '');
-                localStorage.setItem('currentUser', 'admin');
-                localStorage.setItem('currentUserId', 'admin');
-                localStorage.setItem('currentCompany', '');
-                localStorage.setItem('isLoggedIn', 'true');
-
-                // ترحيل بيانات الأدمين (لو كانت مخزنة باسم مختلف)
-                await App.migrateUserData(user, 'admin');
-
-                const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
-                sessionStorage.removeItem('redirectAfterLogin');
-                window.location.href = target;
+                proceedLogin('admin', 'admin', '');
                 return;
             }
 
-            // تعطيل الزر مؤقتاً أثناء التحقق
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = App.icon('lock', 16) + ' <span>جاري التحقق سحابياً...</span>';
+            // 2. فحص سريع من الذاكرة المحلية أولاً لتسجيل الدخول الفوري دون انتظار الشبكة
+            let localUsers = [];
+            try {
+                localUsers = JSON.parse(localStorage.getItem('systemUsers')) || [];
+            } catch (e) {}
 
-            let usersList = [];
-            if (typeof FirebaseDB !== 'undefined') {
-                usersList = await FirebaseDB.get('systemUsers', []) || [];
-            }
-            if (!usersList.length) {
-                usersList = JSON.parse(localStorage.getItem('systemUsers')) || [];
-            }
-
-            // البحث بحرية وعدم تحسس لحالة الحروف الإنجليزية أو البريد
-            const foundUser = usersList.find(u => 
+            let foundUser = localUsers.find(u => 
                 ((u.username && u.username.toLowerCase().trim() === normalizedUser) ||
                  (u.email && u.email.toLowerCase().trim() === normalizedUser)) &&
                 u.password === pass
             );
+
+            if (foundUser) {
+                if (foundUser.isBlocked) {
+                    alert("عذراً، هذا الحساب تم حظره من قبل الإدارة.");
+                    return;
+                }
+                if (!foundUser.isApproved) {
+                    alert("الحساب في انتظار موافقة الإدارة.");
+                    return;
+                }
+                if (!foundUser.uid) {
+                    foundUser.uid = 'uid_' + foundUser.username.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                }
+                proceedLogin(foundUser.username, foundUser.uid, foundUser.companyName || '');
+                return;
+            }
+
+            // 3. إذا لم ينجح الفحص المحلي، نلجأ للسحابة مع زر تحميل ومهلة زمنية سريعة
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = App.icon('lock', 16) + ' <span>جاري التحقق...</span>';
+
+            try {
+                // إذا كان أدمن لكن كلمة المرور لم تطابق المحفوظ محلياً، نتحقق من إعدادات الأدمن السحابية
+                if (isAdminMatch && typeof FirebaseDB !== 'undefined') {
+                    const adminSettings = await FirebaseDB.get('adminSettings', null, 3000);
+                    if (adminSettings && adminSettings.adminPassword) {
+                        adminSavedPass = adminSettings.adminPassword;
+                        localStorage.setItem('adminPassword', adminSavedPass);
+                        if (pass === adminSavedPass) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
+                            proceedLogin('admin', 'admin', '');
+                            return;
+                        }
+                    }
+                }
+
+                // فحص قائمة المستخدمين سحابياً
+                if (typeof FirebaseDB !== 'undefined') {
+                    const cloudUsers = await FirebaseDB.get('systemUsers', [], 3500) || [];
+                    if (cloudUsers && cloudUsers.length) {
+                        foundUser = cloudUsers.find(u => 
+                            ((u.username && u.username.toLowerCase().trim() === normalizedUser) ||
+                             (u.email && u.email.toLowerCase().trim() === normalizedUser)) &&
+                            u.password === pass
+                        );
+                    }
+                }
+            } catch (err) {
+                console.warn("خطأ أثناء التحقق السحابي:", err);
+            }
 
             submitBtn.disabled = false;
             submitBtn.innerHTML = App.icon('lock', 16) + ' <span>دخول للوحة التحكم</span>';
@@ -139,32 +181,13 @@
                     alert("الحساب في انتظار موافقة الإدارة.");
                     return;
                 }
-
-                // ضمان ثبات الـ UID عبر جميع الأجهزة (لابتوب وتليفون) لتطابق مفاتيح البيانات السحابية
                 if (!foundUser.uid) {
                     foundUser.uid = 'uid_' + foundUser.username.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
                     if (typeof FirebaseDB !== 'undefined') {
-                        FirebaseDB.save('systemUsers', usersList);
-                    } else {
-                        localStorage.setItem('systemUsers', JSON.stringify(usersList));
+                        FirebaseDB.save('systemUsers', localUsers.length ? localUsers : [foundUser]);
                     }
                 }
-
-                sessionStorage.setItem('isLoggedIn', 'true');
-                sessionStorage.setItem('currentUser', foundUser.username);
-                sessionStorage.setItem('currentUserId', foundUser.uid);
-                sessionStorage.setItem('currentCompany', foundUser.companyName || '');
-                localStorage.setItem('currentUser', foundUser.username);
-                localStorage.setItem('currentUserId', foundUser.uid);
-                localStorage.setItem('currentCompany', foundUser.companyName || '');
-                localStorage.setItem('isLoggedIn', 'true');
-
-                // ترحيل بيانات المستخدم من المفاتيح القديمة (بالاسم) إلى الجديدة (بالـ UID)
-                await App.migrateUserData(foundUser.username, foundUser.uid);
-
-                const target = sessionStorage.getItem('redirectAfterLogin') || 'dashboard.html';
-                sessionStorage.removeItem('redirectAfterLogin');
-                window.location.href = target;
+                proceedLogin(foundUser.username, foundUser.uid, foundUser.companyName || '');
                 return;
             }
 

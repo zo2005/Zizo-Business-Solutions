@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar-u-nu-latn" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -750,9 +750,10 @@
 
             item.stocks[sizeLabel] = item.stocks[sizeLabel] + purchase - usage + returns;
 
-            if (purchase > 0) historyItems.unshift({ date, item: `${item.name} (${sizeLabel})`, qty: purchase, type: 'شراء' });
-            if (usage > 0) historyItems.unshift({ date, item: `${item.name} (${sizeLabel})`, qty: usage, type: 'سحب' });
-            if (returns > 0) historyItems.unshift({ date, item: `${item.name} (${sizeLabel})`, qty: returns, type: 'مرتجع' });
+            const unitPrice = parseFloat(item.price) || 0;
+            if (purchase > 0) historyItems.unshift({ id: Date.now(), date, item: `${item.name} (${sizeLabel})`, qty: purchase, type: 'شراء', price: unitPrice });
+            if (usage > 0) historyItems.unshift({ id: Date.now() + 1, date, item: `${item.name} (${sizeLabel})`, qty: usage, type: 'سحب', price: unitPrice, totalCost: usage * unitPrice });
+            if (returns > 0) historyItems.unshift({ id: Date.now() + 2, date, item: `${item.name} (${sizeLabel})`, qty: returns, type: 'مرتجع', price: unitPrice });
 
             item.purchase = 0; item.usage = 0; item.returns = 0;
             saveDataSilent();
@@ -772,9 +773,10 @@
 
             pushState();
             item.currentStock = (item.currentStock || 0) + purchase - usage + returns;
-            if (purchase > 0) historyItems.unshift({ date, item: `بكر سنجر كود ${item.code}`, qty: purchase, type: 'شراء' });
-            if (usage > 0) historyItems.unshift({ date, item: `بكر سنجر كود ${item.code}`, qty: usage, type: 'سحب' });
-            if (returns > 0) historyItems.unshift({ date, item: `بكر سنجر كود ${item.code}`, qty: returns, type: 'مرتجع' });
+            const unitPrice = parseFloat(item.price) || 0;
+            if (purchase > 0) historyItems.unshift({ id: Date.now(), date, item: `بكر سنجر كود ${item.code}`, qty: purchase, type: 'شراء', price: unitPrice });
+            if (usage > 0) historyItems.unshift({ id: Date.now() + 1, date, item: `بكر سنجر كود ${item.code}`, qty: usage, type: 'سحب', price: unitPrice, totalCost: usage * unitPrice });
+            if (returns > 0) historyItems.unshift({ id: Date.now() + 2, date, item: `بكر سنجر كود ${item.code}`, qty: returns, type: 'مرتجع', price: unitPrice });
 
             item.purchase = 0; item.usage = 0; item.returns = 0;
             saveDataSilent();
@@ -794,9 +796,10 @@
 
             pushState();
             item.currentStock = (item.currentStock || 0) + purchase - usage + returns;
-            if (purchase > 0) historyItems.unshift({ date, item: `بكر أوفر ${item.color}`, qty: purchase, type: 'شراء' });
-            if (usage > 0) historyItems.unshift({ date, item: `بكر أوفر ${item.color}`, qty: usage, type: 'سحب' });
-            if (returns > 0) historyItems.unshift({ date, item: `بكر أوفر ${item.color}`, qty: returns, type: 'مرتجع' });
+            const unitPrice = parseFloat(item.price) || 0;
+            if (purchase > 0) historyItems.unshift({ id: Date.now(), date, item: `بكر أوفر ${item.color}`, qty: purchase, type: 'شراء', price: unitPrice });
+            if (usage > 0) historyItems.unshift({ id: Date.now() + 1, date, item: `بكر أوفر ${item.color}`, qty: usage, type: 'سحب', price: unitPrice, totalCost: usage * unitPrice });
+            if (returns > 0) historyItems.unshift({ id: Date.now() + 2, date, item: `بكر أوفر ${item.color}`, qty: returns, type: 'مرتجع', price: unitPrice });
 
             item.purchase = 0; item.usage = 0; item.returns = 0;
             saveDataSilent();

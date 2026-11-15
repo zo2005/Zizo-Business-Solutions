@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar-u-nu-latn" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -389,6 +389,7 @@
 
             saveAndRender();
             this.reset();
+            setDefaultDeliveryDate();
             document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تسجيل الفاتورة بالكامل</span>';
             document.getElementById('invoiceItemsContainer').innerHTML = '';
             addInvoiceItemRow();
@@ -445,7 +446,7 @@
 
             const invoiceHTML = `
                 <!DOCTYPE html>
-                <html lang="ar" dir="rtl">
+                <html lang="ar-u-nu-latn" dir="rtl">
                 <head>
                     <meta charset="UTF-8">
                     <title>فاتورة مبيعات - رقم ${sale.invoiceNo}</title>
@@ -568,7 +569,7 @@
                         </div>
 
                         <div class="footer">
-                            شكراً لتعاملكم معنا - طبعت بواسطة Zizo Business Solutions في ${new Date().toLocaleDateString('ar-EG')}
+                            شكراً لتعاملكم معنا - طبعت بواسطة Zizo Business Solutions في ${App.formatDate(new Date())}
                         </div>
                     </div>
                     <script>
@@ -585,6 +586,13 @@
             printWindow.document.close();
         }
 
+        function setDefaultDeliveryDate() {
+            const dateInput = document.getElementById('deliveryDate');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+        }
+
         window.onload = function() {
             App.initLayout('sales');
 
@@ -596,6 +604,7 @@
             document.getElementById('submitBtn').innerHTML = App.icon('check', 14) + ' <span>تسجيل الفاتورة بالكامل</span>';
             document.getElementById('clearSalesBtn').innerHTML = App.icon('trash', 13) + ' <span>تصفير شيت المبيعات</span>';
 
+            setDefaultDeliveryDate();
             addInvoiceItemRow();
             renderTable(salesData);
 
